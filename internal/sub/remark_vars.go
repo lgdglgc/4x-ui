@@ -677,5 +677,11 @@ func (s *SubService) genHostRemark(inbound *model.Inbound, client model.Client, 
 	if s.remarkTemplate != "" {
 		return s.genTemplatedRemark(inbound, client, hostRemark, transport)
 	}
-	return fallbackRemark(inbound.Remark, hostRemark, client.Email)
+	if inbound.Remark != "" {
+		if hostRemark != "" {
+			return inbound.Remark + "-" + hostRemark
+		}
+		return inbound.Remark
+	}
+	return fallbackRemark(hostRemark, client.Email)
 }

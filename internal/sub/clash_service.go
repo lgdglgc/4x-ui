@@ -138,6 +138,15 @@ func (s *SubClashService) getClash(subId string, host string, legacy bool) (stri
 		return "", header, nil
 	}
 
+	for _, proxy := range proxies {
+		if isDummyProxy(proxy) {
+			continue
+		}
+		if name, ok := proxy["name"].(string); ok && name != "" {
+			proxy["name"] = BeautifyNodeName(name)
+		}
+	}
+
 	ensureUniqueProxyNames(proxies)
 
 	proxyNames := make([]string, 0, len(proxies)+1)
@@ -1614,6 +1623,7 @@ func formatProxiesYAML(proxies []map[string]any) string {
 		"network",
 		"servername",
 		"sni",
+		"alpn",
 		"flow",
 		"client-fingerprint",
 		"reality-opts",
@@ -1632,9 +1642,9 @@ func formatProxiesYAML(proxies []map[string]any) string {
 				return
 			}
 			written[k] = true
-			prefix := "  "
+			prefix := "    "
 			if first {
-				prefix = "- "
+				prefix = "  - "
 				first = false
 			}
 
@@ -1647,7 +1657,7 @@ func formatProxiesYAML(proxies []map[string]any) string {
 				sb.WriteString(fmt.Sprintf("%s%s: %t\n", prefix, k, val))
 			case map[string]any:
 				sb.WriteString(fmt.Sprintf("%s%s:\n", prefix, k))
-				writeYAMLMap(&sb, val, 4)
+				writeYAMLMap(&sb, val, 6)
 			default:
 				b, _ := yaml.Marshal(val)
 				lines := strings.Split(strings.TrimSpace(string(b)), "\n")
@@ -1656,7 +1666,7 @@ func formatProxiesYAML(proxies []map[string]any) string {
 				} else {
 					sb.WriteString(fmt.Sprintf("%s%s:\n", prefix, k))
 					for _, l := range lines {
-						sb.WriteString(fmt.Sprintf("    %s\n", l))
+						sb.WriteString(fmt.Sprintf("      %s\n", l))
 					}
 				}
 			}
@@ -1698,7 +1708,11 @@ func writeYAMLMap(sb *strings.Builder, m map[string]any, indent int) {
 func writeKVPair(sb *strings.Builder, spaces, k string, v any, indent int) {
 	switch val := v.(type) {
 	case string:
-		sb.WriteString(fmt.Sprintf("%s%s: %s\n", spaces, k, formatYAMLString(val)))
+		if (k == "short-id" || k == "spider-x") && val != "" {
+			sb.WriteString(fmt.Sprintf("%s%s: \"%s\"\n", spaces, k, strings.Trim(val, "\"")))
+		} else {
+			sb.WriteString(fmt.Sprintf("%s%s: %s\n", spaces, k, formatYAMLString(val)))
+		}
 	case bool:
 		sb.WriteString(fmt.Sprintf("%s%s: %t\n", spaces, k, val))
 	case int, int64, float64:

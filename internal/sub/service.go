@@ -2339,7 +2339,13 @@ func (s *SubService) genRemark(inbound *model.Inbound, email string, extra strin
 	if s.remarkTemplate != "" {
 		return s.genTemplatedRemark(inbound, s.lookupClient(inbound, email), extra, transport)
 	}
-	return fallbackRemark(inbound.Remark, extra, email)
+	if inbound.Remark != "" {
+		if extra != "" {
+			return inbound.Remark + "-" + extra
+		}
+		return inbound.Remark
+	}
+	return fallbackRemark(extra, email)
 }
 
 func fallbackRemark(parts ...string) string {
