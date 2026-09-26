@@ -159,75 +159,68 @@ func (s *SubClashService) getClash(subId string, host string, legacy bool) (stri
 		}
 	}
 
-	var config map[string]any
+	// Format proxies to YAML block
+	proxiesBytes, err := marshalClashYAML(map[string]any{"proxies": proxies})
+	if err != nil {
+		return "", "", err
+	}
+	proxiesYAML := strings.TrimSpace(string(proxiesBytes))
 
-	templateBytes := []byte(defaultClashTemplate)
 	// Check external custom templates for hot-reloading
+	templateStr := defaultClashTemplate
 	candidatePaths := []string{
 		"/usr/local/4x-ui/clash_template.yaml",
 		"/usr/local/x-ui/clash_template.yaml",
 	}
 	for _, p := range candidatePaths {
 		if content, err := os.ReadFile(p); err == nil && len(content) > 0 {
-			templateBytes = content
+			templateStr = string(content)
 			break
 		}
 	}
 
-	if len(templateBytes) > 0 {
-		var tmpl map[string]any
-		if err := yaml.Unmarshal(templateBytes, &tmpl); err == nil && tmpl != nil {
-			config = tmpl
+	if templateStr != "" {
+		var finalOutput string
+		if strings.Contains(templateStr, "proxies: []") {
+			finalOutput = strings.Replace(templateStr, "proxies: []", proxiesYAML, 1)
+		} else if strings.Contains(templateStr, "proxies:\n") {
+			finalOutput = strings.Replace(templateStr, "proxies:\n", proxiesYAML+"\n", 1)
+		} else if strings.Contains(templateStr, "proxy-groups:") {
+			finalOutput = strings.Replace(templateStr, "proxy-groups:", proxiesYAML+"\n\nproxy-groups:", 1)
+		} else {
+			finalOutput = proxiesYAML + "\n\n" + templateStr
 		}
-	}
 
-	if config == nil {
-		config = map[string]any{
-			"proxies": proxies,
-			"proxy-groups": []map[string]any{{
-				"name":    "PROXY",
-				"type":    "select",
-				"proxies": proxyNames,
-			}},
-			"rules": []string{"MATCH,PROXY"},
-		}
-	} else {
-		config["proxies"] = proxies
-		// Update proxy-groups in template
-		if groups, ok := config["proxy-groups"].([]any); ok {
-			for _, g := range groups {
-				if gm, ok := g.(map[string]any); ok {
-					if includeAll, ok := gm["include-all-proxies"].(bool); ok && includeAll {
-						// include-all-proxies dynamically includes all proxies at client runtime.
-						// Remove static proxies list to prevent node duplication and DIRECT pollution.
-						delete(gm, "proxies")
-					} else if rawP, ok := gm["proxies"].([]any); !ok || len(rawP) == 0 {
-						gm["proxies"] = nodeNames
+		if s.enableRouting && !legacy && strings.TrimSpace(s.clashRules) != "" {
+			resolved, _, _, resolveErr := resolveClashRoutingSource(s.clashRules)
+			if resolveErr == nil && strings.TrimSpace(resolved) != "" {
+				var extraRules []string
+				for _, line := range strings.Split(resolved, "\n") {
+					line = strings.TrimSpace(line)
+					if line != "" && !strings.HasPrefix(line, "#") {
+						if !strings.HasPrefix(line, "- ") {
+							line = "- " + line
+						}
+						extraRules = append(extraRules, "  "+line)
 					}
 				}
+				if len(extraRules) > 0 && strings.Contains(finalOutput, "rules:") {
+					finalOutput = strings.Replace(finalOutput, "rules:\n", "rules:\n"+strings.Join(extraRules, "\n")+"\n", 1)
+				}
 			}
-		} else {
-			config["proxy-groups"] = []map[string]any{{
-				"name":    "PROXY",
-				"type":    "select",
-				"proxies": nodeNames,
-			}}
 		}
+
+		return finalOutput, header, nil
 	}
 
-	// Custom Clash routing can inject Mihomo-only groups, rules, providers or a
-	// top-level proxies key — exactly what the legacy filter just removed.
-	if s.enableRouting && !legacy {
-		resolved, remoteDocument, remote, resolveErr := resolveClashRoutingSource(s.clashRules)
-		if resolveErr == nil && strings.TrimSpace(resolved) != "" {
-			if remote {
-				if err := mergeRemoteClashRules(config, remoteDocument); err != nil {
-					return "", "", err
-				}
-			} else if err := mergeClashRulesYAML(config, resolved); err != nil {
-				return "", "", err
-			}
-		}
+	config := map[string]any{
+		"proxies": proxies,
+		"proxy-groups": []map[string]any{{
+			"name":    "PROXY",
+			"type":    "select",
+			"proxies": proxyNames,
+		}},
+		"rules": []string{"MATCH,PROXY"},
 	}
 
 	finalYAML, err := marshalClashYAML(config)
