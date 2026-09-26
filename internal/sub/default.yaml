@@ -1,0 +1,94 @@
+port: 7890
+socks-port: 7891
+redir-port: 7892
+allow-lan: true
+mode: rule
+log-level: info
+unified-delay: true
+ipv6: false
+
+tun:
+  enable: true
+  stack: mixed
+  dns-hijack:
+    - 'any:53'
+    - 'tcp://any:53'
+  auto-route: true
+  auto-detect-interface: true
+  strict-route: true
+  endpoint-independent-nat: true
+
+dns:
+  enable: true
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter: ['+.lan', '+.local', '192.168.*', '10.*', '172.16.*', 'localhost', '+.gcr.io', '+.docker.com', '+.services.googleapis.cn', '+.googleapis.cn', 'time.windows.com', 'time.nist.gov', 'time.apple.com', 'time.asia.apple.com', '*.ntp.org.cn', '*.openwrt.pool.ntp.org', 'time1.cloud.tencent.com', 'time.ustc.edu.cn', 'pool.ntp.org', 'ntp.ubuntu.com', 'ntp.aliyun.com', 'ntp1.aliyun.com', 'ntp2.aliyun.com', 'ntp3.aliyun.com', 'ntp4.aliyun.com', 'ntp5.aliyun.com', 'ntp6.aliyun.com', 'ntp7.aliyun.com', 'time1.aliyun.com', 'time2.aliyun.com', 'time3.aliyun.com', 'time4.aliyun.com', 'time5.aliyun.com', 'time6.aliyun.com', 'time7.aliyun.com', '*.time.edu.cn', 'time1.apple.com', 'time2.apple.com', 'time3.apple.com', 'time4.apple.com', 'time5.apple.com', 'time6.apple.com', 'time7.apple.com', 'time1.google.com', 'time2.google.com', 'time3.google.com', 'time4.google.com', '*.msftconnecttest.com', '*.msftncsi.com', '*.*.*.srv.nintendo.net', '*.*.stun.playstation.net', 'xbox.*.*.microsoft.com', '*.*.xboxlive.com', 'speedtest.cros.wr.pvp.net', 'music.163.com', '*.music.163.com', '*.126.net', 'musicapi.taihe.com', 'music.taihe.com', 'songsearch.kugou.com', 'trackercdn.kugou.com', '*.kuwo.cn', 'api-jooxtt.sanook.com', 'api.joox.com', 'joox.com', 'y.qq.com', '*.y.qq.com', 'streamoc.music.tc.qq.com', 'mobileoc.music.tc.qq.com', 'isure.stream.qqmusic.qq.com', 'dl.stream.qqmusic.qq.com', 'aqqmusic.tc.qq.com', 'amobile.music.tc.qq.com', '*.xiami.com', '*.music.migu.cn', 'music.migu.cn', 'localhost.ptlogin2.qq.com']
+
+  # 1. 默认兜底 DNS（国外域名）
+  nameserver:
+    - https://1.0.0.1/dns-query
+    - https://dns.cloudflare.com/dns-query
+    - https://public.dns.iij.jp/dns-query
+
+  # 2. 节点域名解析（防止代理节点域名解析失败）
+  proxy-server-nameserver:
+    - 223.5.5.5
+    - 114.114.114.114
+
+  # 3. 基础引导 DNS
+  default-nameserver:
+    - 223.5.5.5
+    - 114.114.114.114
+
+  # 4. 严格策略分流
+  nameserver-policy:
+    '+.stun.cloudflare.com': [https://1.0.0.1/dns-query, https://dns.cloudflare.com/dns-query]
+    '+.stun.l.google.com': [https://1.0.0.1/dns-query, https://dns.cloudflare.com/dns-query]
+    'geosite:cn': [https://dns.alidns.com/dns-query, https://doh.pub/dns-query]
+
+    # 强制 Google Play / Google 服务走国外 DNS
+    'services.googleapis.cn': [https://1.0.0.1/dns-query, https://dns.cloudflare.com/dns-query]
+    'googleapis.cn': [https://1.0.0.1/dns-query, https://dns.cloudflare.com/dns-query]
+    '+.googleapis.com': [https://1.0.0.1/dns-query, https://dns.cloudflare.com/dns-query]
+    '+.google.com': [https://1.0.0.1/dns-query, https://dns.cloudflare.com/dns-query]
+    'geosite:google': [https://1.0.0.1/dns-query, https://dns.cloudflare.com/dns-query]
+    'geosite:geolocation-!cn': [https://1.0.0.1/dns-query, https://public.dns.iij.jp/dns-query]
+
+proxies: []
+
+proxy-groups:
+  - name: 🔯 Proxy
+    type: select
+    include-all-proxies: true
+    icon: https://raw.githubusercontent.com/Orz-3/mini/master/Color/Global.png
+
+# ==================== 规则（重点加强国内直连） ====================
+rules:
+  # WebRTC STUN 流量强制走代理出口
+  - DOMAIN-KEYWORD,stun,🔯 Proxy
+  - DOMAIN-KEYWORD,turn,🔯 Proxy
+  - DOMAIN-SUFFIX,stun.l.google.com,🔯 Proxy
+  - DOMAIN-SUFFIX,stun.cloudflare.com,🔯 Proxy
+  - DST-PORT,3478,🔯 Proxy
+  - DST-PORT,3479,🔯 Proxy
+  - DST-PORT,5349,🔯 Proxy
+  - DST-PORT,19302,🔯 Proxy
+  - DST-PORT,19305,🔯 Proxy
+  # 优先处理 Google Play 关键域名（必须走代理）
+  - DOMAIN-SUFFIX,services.googleapis.cn,🔯 Proxy
+  - DOMAIN-SUFFIX,googleapis.cn,🔯 Proxy
+  - DOMAIN-KEYWORD,googleplay,🔯 Proxy
+  - DOMAIN-SUFFIX,play.google.com,🔯 Proxy
+  - DOMAIN-SUFFIX,android.clients.google.com,🔯 Proxy
+  - DOMAIN-SUFFIX,android.googleapis.com,🔯 Proxy
+  - DOMAIN-SUFFIX,googleusercontent.com,🔯 Proxy
+  # 原有规则
+  - GEOSITE,private,DIRECT
+  - GEOSITE,cn,DIRECT
+  - GEOSITE,gfw,🔯 Proxy
+  - GEOSITE,geolocation-!cn,🔯 Proxy
+  # IP 规则
+  - GEOIP,LAN,DIRECT
+  - GEOIP,CN,DIRECT
+  - MATCH,🔯 Proxy

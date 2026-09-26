@@ -1,10 +1,12 @@
 package sub
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"maps"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 
@@ -16,6 +18,9 @@ import (
 	"github.com/mhsanaei/3x-ui/v3/internal/tuic"
 	wgutil "github.com/mhsanaei/3x-ui/v3/internal/util/wireguard"
 )
+
+//go:embed default.yaml
+var defaultClashTemplate string
 
 type SubClashService struct {
 	enableRouting bool
@@ -146,14 +151,58 @@ func (s *SubClashService) getClash(subId string, host string, legacy bool) (stri
 	}
 	proxyNames = append(proxyNames, "DIRECT")
 
-	config := map[string]any{
-		"proxies": proxies,
-		"proxy-groups": []map[string]any{{
-			"name":    "PROXY",
-			"type":    "select",
-			"proxies": proxyNames,
-		}},
-		"rules": []string{"MATCH,PROXY"},
+	var config map[string]any
+
+	templateBytes := []byte(defaultClashTemplate)
+	// Check external custom templates for hot-reloading
+	candidatePaths := []string{
+		"/usr/local/4x-ui/clash_template.yaml",
+		"/usr/local/x-ui/clash_template.yaml",
+	}
+	for _, p := range candidatePaths {
+		if content, err := os.ReadFile(p); err == nil && len(content) > 0 {
+			templateBytes = content
+			break
+		}
+	}
+
+	if len(templateBytes) > 0 {
+		var tmpl map[string]any
+		if err := yaml.Unmarshal(templateBytes, &tmpl); err == nil && tmpl != nil {
+			config = tmpl
+		}
+	}
+
+	if config == nil {
+		config = map[string]any{
+			"proxies": proxies,
+			"proxy-groups": []map[string]any{{
+				"name":    "PROXY",
+				"type":    "select",
+				"proxies": proxyNames,
+			}},
+			"rules": []string{"MATCH,PROXY"},
+		}
+	} else {
+		config["proxies"] = proxies
+		// Update proxy-groups in template
+		if groups, ok := config["proxy-groups"].([]any); ok {
+			for _, g := range groups {
+				if gm, ok := g.(map[string]any); ok {
+					if includeAll, ok := gm["include-all-proxies"].(bool); ok && includeAll {
+						gm["proxies"] = proxyNames
+					} else if rawP, ok := gm["proxies"].([]any); !ok || len(rawP) == 0 {
+						gm["proxies"] = proxyNames
+					}
+				}
+			}
+		} else {
+			config["proxy-groups"] = []map[string]any{{
+				"name":    "PROXY",
+				"type":    "select",
+				"proxies": proxyNames,
+			}}
+		}
 	}
 
 	// Custom Clash routing can inject Mihomo-only groups, rules, providers or a
