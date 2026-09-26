@@ -30,7 +30,7 @@ type PanelUpdateInfo struct {
 }
 
 const (
-	panelUpdaterURL      = "https://raw.githubusercontent.com/lgdglgc/3x-ui/main/update.sh"
+	panelUpdaterURL      = "https://raw.githubusercontent.com/lgdglgc/4x-ui/main/update.sh"
 	maxPanelUpdaterBytes = 2 << 20
 )
 
