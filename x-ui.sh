@@ -119,11 +119,11 @@ stop_occupying_services() {
     if is_port_in_use "${port}"; then
         for svc in nginx openresty apache2 httpd caddy tengine; do
             if systemctl is-active --quiet ${svc} 2>/dev/null; then
-                LOGI "正在临时停止 ${svc} 服务以释放端�?${port}..." >&2
+                LOGI "正在临时停止 ${svc} 服务以释放端口 ${port}..." >&2
                 systemctl stop ${svc} >/dev/null 2>&1
                 stopped_services="${stopped_services} ${svc}"
             elif [ -f "/etc/init.d/${svc}" ]; then
-                LOGI "正在临时停止 /etc/init.d/${svc} 服务以释放端�?${port}..." >&2
+                LOGI "正在临时停止 /etc/init.d/${svc} 服务以释放端口 ${port}..." >&2
                 /etc/init.d/${svc} stop >/dev/null 2>&1
                 stopped_services="${stopped_services} ${svc}"
             fi
@@ -173,7 +173,7 @@ else
     echo "无法检测当前操作系统发行版，请检查系统环境！" >&2
     exit 1
 fi
-echo "当前操作系统发行�? $release"
+echo "当前操作系统发行版: $release"
 
 os_version=""
 os_version=$(grep "^VERSION_ID" /etc/os-release | cut -d '=' -f2 | tr -d '"' | tr -d '.')
@@ -203,7 +203,7 @@ confirm() {
 }
 
 confirm_restart() {
-    confirm "确认重启面板？注�? 重启面板同时会重�?Xray 内核" "y"
+    confirm "确认重启面板？注意: 重启面板同时会重启 Xray 内核" "y"
     if [[ $? == 0 ]]; then
         restart
     else
@@ -212,7 +212,7 @@ confirm_restart() {
 }
 
 before_show_menu() {
-    echo && echo -n -e "${yellow}按回车键返回主菜�? ${plain}" && read -r temp
+    echo && echo -n -e "${yellow}按回车键返回主菜单: ${plain}" && read -r temp
     show_menu
 }
 
@@ -228,7 +228,7 @@ install() {
 }
 
 update() {
-    confirm "此操作将更新所�?x-ui 组件，现有数据不会丢失。是否继续？" "y"
+    confirm "此操作将更新所有 x-ui 组件，现有数据不会丢失。是否继续？" "y"
     if [[ $? != 0 ]]; then
         LOGE "Cancelled"
         if [[ $# == 0 ]]; then
@@ -260,27 +260,27 @@ update_menu() {
     chmod +x /usr/bin/x-ui
 
     if [[ $? == 0 ]]; then
-        echo -e "${green}更新成功，面板已自动重启�?{plain}"
+        echo -e "${green}更新成功，面板已自动重启。${plain}"
         exit 0
     else
-        echo -e "${red}更新菜单脚本失败�?{plain}"
+        echo -e "${red}更新菜单脚本失败。${plain}"
         return 1
     fi
 }
 
 legacy_version() {
-    read -rp "请输入要切换的面板版�?[默认 4.0.0]: " tag_version
+    read -rp "请输入要切换的面板版本 [默认 4.0.0]: " tag_version
     [[ -z "$tag_version" ]] && tag_version="4.0.0"
     [[ "$tag_version" =~ ^v ]] || tag_version="v$tag_version"
 
-    read -rp "请输入要搭配�?Xray 核心版本 [默认 v26.6.27]: " xray_version
+    read -rp "请输入要搭配的 Xray 核心版本 [默认 v26.6.27]: " xray_version
     [[ -z "$xray_version" ]] && xray_version="v26.6.27"
     [[ "$xray_version" =~ ^v ]] || xray_version="v$xray_version"
 
     # Use the entered panel version and xray version in the download link
     install_command="bash <(curl -Ls "https://raw.githubusercontent.com/lgdglgc/4x-ui/main/install.sh") $tag_version $xray_version"
 
-    echo "正在下载并安装面板版�?$tag_version (Xray 核心: $xray_version)..."
+    echo "正在下载并安装面板版本 $tag_version (Xray 核心: $xray_version)..."
     eval $install_command
 }
 
@@ -305,7 +305,7 @@ xui_env_file_path() {
 }
 
 uninstall() {
-    confirm "确定要卸�?x-ui 面板吗？注意: Xray 内核也将被一并卸载！" "n"
+    confirm "确定要卸载 x-ui 面板吗？注意: Xray 内核也将被一并卸载！" "n"
     if [[ $? != 0 ]]; then
         if [[ $# == 0 ]]; then
             show_menu
@@ -350,20 +350,20 @@ reset_user() {
 
     read -rp "请设置登录用户名 [默认随机生成]: " config_account
     [[ -z $config_account ]] && config_account=$(gen_random_string 10)
-    read -rp "请设置登录密�?[默认随机生成]: " config_password
+    read -rp "请设置登录密码 [默认随机生成]: " config_password
     [[ -z $config_password ]] && config_password=$(gen_random_string 18)
 
-    read -rp "是否禁用当前已配置的两步验证�?y/n): " twoFactorConfirm
+    read -rp "是否禁用当前已配置的两步验证？(y/n): " twoFactorConfirm
     if [[ $twoFactorConfirm != "y" && $twoFactorConfirm != "Y" ]]; then
         ${xui_folder}/x-ui setting -username "${config_account}" -password "${config_password}" > /dev/null 2>&1
     else
         ${xui_folder}/x-ui setting -username "${config_account}" -password "${config_password}" -resetTwoFactor=true > /dev/null 2>&1
-        echo -e "两步验证已成功禁用�?
+        echo -e "两步验证已成功禁用。"
     fi
 
-    echo -e "面板登录用户名已重置�? ${green} ${config_account} ${plain}"
+    echo -e "面板登录用户名已重置为: ${green} ${config_account} ${plain}"
     echo -e "面板登录密码已重置为: ${green} ${config_password} ${plain}"
-    echo -e "${green} 请使用新的登录用户名和密码访问面板，务必牢记�?{plain}"
+    echo -e "${green} 请使用新的登录用户名和密码访问面板，务必牢记！${plain}"
     confirm_restart
 }
 
@@ -375,11 +375,11 @@ gen_random_string() {
 }
 
 reset_webbasepath() {
-    echo -e "${yellow}重置网页根路�?(webBasePath)${plain}"
+    echo -e "${yellow}重置网页根路径 (webBasePath)${plain}"
 
     read -rp "确定要重置网页根路径吗？(y/n): " confirm
     if [[ $confirm != "y" && $confirm != "Y" ]]; then
-        echo -e "${yellow}操作已取消�?{plain}"
+        echo -e "${yellow}操作已取消。${plain}"
         return
     fi
 
@@ -388,8 +388,8 @@ reset_webbasepath() {
     # Apply the new web base path setting
     ${xui_folder}/x-ui setting -webBasePath "${config_webBasePath}" > /dev/null 2>&1
 
-    echo -e "网页根路径已重置�? ${green}${config_webBasePath}${plain}"
-    echo -e "${green}请使用新的网页根路径访问面板�?{plain}"
+    echo -e "网页根路径已重置为: ${green}${config_webBasePath}${plain}"
+    echo -e "${green}请使用新的网页根路径访问面板。${plain}"
     restart
 }
 
@@ -402,14 +402,14 @@ reset_config() {
         return 0
     fi
     ${xui_folder}/x-ui setting -reset
-    echo -e "所有面板设置已重置为默认值�?
+    echo -e "所有面板设置已重置为默认值。"
     restart
 }
 
 check_config() {
     local info=$(${xui_folder}/x-ui setting -show true)
     if [[ $? != 0 ]]; then
-        LOGE "获取当前设置失败，请检查运行日�?
+        LOGE "获取当前设置失败，请检查运行日志"
         show_menu
         return
     fi
@@ -422,7 +422,7 @@ check_config() {
         dsn="$(grep -E '^XUI_DB_DSN=' "$db_env_file" | head -1 | cut -d= -f2-)"
         local dsn_safe
         dsn_safe="$(echo "$dsn" | sed -E 's|(://[^:/@]+:)[^@]+@|\1****@|')"
-        echo -e "${green}Database: PostgreSQL �?${dsn_safe}${plain}"
+        echo -e "${green}Database: PostgreSQL — ${dsn_safe}${plain}"
     else
         echo -e "${green}Database: SQLite (/etc/x-ui/x-ui.db)${plain}"
     fi
@@ -450,12 +450,12 @@ check_config() {
     done
 
     if [[ -z "$server_ip" ]]; then
-        echo -e "${yellow}无法从任何接口服务自动检测到服务�?IP�?{plain}"
+        echo -e "${yellow}无法从任何接口服务自动检测到服务器 IP。${plain}"
         while [[ -z "$server_ip" ]]; do
             read -rp "请输入您服务器的公网 IPv4 地址: " server_ip
             server_ip="${server_ip// /}"
             if [[ ! "$server_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                echo -e "${red}无效�?IPv4 地址，请重新输入�?{plain}"
+                echo -e "${red}无效的 IPv4 地址，请重新输入。${plain}"
                 server_ip=""
             fi
         done
@@ -470,9 +470,9 @@ check_config() {
             echo -e "${green}访问链接: https://${server_ip}:${existing_port}${existing_webBasePath}${plain}"
         fi
     else
-        echo -e "${red}�?警告: 当前面板未配�?SSL 证书�?{plain}"
-        echo -e "${yellow}您可以为 IP 地址申请 Let's Encrypt 短效证书 (�?6 天有效期，支持自动续�?�?{plain}"
-        read -rp "是否现在�?IP 生成 SSL 证书？[y/N]: " gen_ssl
+        echo -e "${red}⚠ 警告: 当前面板未配置 SSL 证书！${plain}"
+        echo -e "${yellow}您可以为 IP 地址申请 Let's Encrypt 短效证书 (约 6 天有效期，支持自动续签)。${plain}"
+        read -rp "是否现在为 IP 生成 SSL 证书？[y/N]: " gen_ssl
         if [[ "$gen_ssl" == "y" || "$gen_ssl" == "Y" ]]; then
             stop 0 > /dev/null 2>&1
             ssl_cert_issue_for_ip
@@ -481,8 +481,8 @@ check_config() {
                 # ssl_cert_issue_for_ip already restarts the panel, but ensure it's running
                 start 0 > /dev/null 2>&1
             else
-                LOGE "IP 证书申请与配置失败�?
-                echo -e "${yellow}您稍后可通过菜单选项 19 (SSL 证书管理) 重新申请�?{plain}"
+                LOGE "IP 证书申请与配置失败。"
+                echo -e "${yellow}您稍后可通过菜单选项 19 (SSL 证书管理) 重新申请。${plain}"
                 start 0 > /dev/null 2>&1
             fi
         else
@@ -534,7 +534,7 @@ stop() {
     check_status
     if [[ $? == 1 ]]; then
         echo ""
-        LOGI "面板已处于停止状态，无需重复停止�?
+        LOGI "面板已处于停止状态，无需重复停止！"
     else
         if [[ $release == "alpine" ]]; then
             rc-service x-ui stop
@@ -544,7 +544,7 @@ stop() {
         sleep 2
         check_status
         if [[ $? == 1 ]]; then
-            LOGI "x-ui 面板�?Xray 内核已成功停�?
+            LOGI "x-ui 面板与 Xray 内核已成功停止"
         else
             LOGE "面板停止失败，可能是停止超时，请稍后查看日志确认"
         fi
@@ -564,7 +564,7 @@ restart() {
     sleep 2
     check_status
     if [[ $? == 0 ]]; then
-        LOGI "x-ui 面板�?Xray 内核已成功重�?
+        LOGI "x-ui 面板与 Xray 内核已成功重启"
     else
         LOGE "面板重启失败，可能是启动耗时较长，请稍后查看日志确认"
     fi
@@ -579,7 +579,7 @@ restart_xray() {
     else
         systemctl reload x-ui
     fi
-    LOGI "Xray 内核重启信号已成功发送，请查看日志确�?Xray 重启状�?
+    LOGI "Xray 内核重启信号已成功发送，请查看日志确认 Xray 重启状态"
     sleep 2
     show_xray_status
     if [[ $# == 0 ]]; then
@@ -605,9 +605,9 @@ enable() {
         systemctl enable x-ui
     fi
     if [[ $? == 0 ]]; then
-        LOGI "已成功设�?x-ui 开机自�?
+        LOGI "已成功设置 x-ui 开机自启"
     else
-        LOGE "设置 x-ui 开机自启失�?
+        LOGE "设置 x-ui 开机自启失败"
     fi
 
     if [[ $# == 0 ]]; then
@@ -622,9 +622,9 @@ disable() {
         systemctl disable x-ui
     fi
     if [[ $? == 0 ]]; then
-        LOGI "已成功取�?x-ui 开机自�?
+        LOGI "已成功取消 x-ui 开机自启"
     else
-        LOGE "取消 x-ui 开机自启失�?
+        LOGE "取消 x-ui 开机自启失败"
     fi
 
     if [[ $# == 0 ]]; then
@@ -635,7 +635,7 @@ disable() {
 show_log() {
     if [[ $release == "alpine" ]]; then
         echo -e "${green}\t1.${plain} 调试日志"
-        echo -e "${green}\t0.${plain} 返回主菜�?
+        echo -e "${green}\t0.${plain} 返回主菜单"
         read -rp "Choose an option: " choice
 
         case "$choice" in
@@ -649,14 +649,14 @@ show_log() {
                 fi
                 ;;
             *)
-                echo -e "${red}无效选项，请输入有效序号�?{plain}\n"
+                echo -e "${red}无效选项，请输入有效序号。${plain}\n"
                 show_log
                 ;;
         esac
     else
         echo -e "${green}\t1.${plain} 调试日志"
-        echo -e "${green}\t2.${plain} 清理所有日�?
-        echo -e "${green}\t0.${plain} 返回主菜�?
+        echo -e "${green}\t2.${plain} 清理所有日志"
+        echo -e "${green}\t0.${plain} 返回主菜单"
         read -rp "Choose an option: " choice
 
         case "$choice" in
@@ -672,11 +672,11 @@ show_log() {
             2)
                 sudo journalctl --rotate
                 sudo journalctl --vacuum-time=1s
-                echo "所有日志已清空�?
+                echo "所有日志已清空。"
                 restart
                 ;;
             *)
-                echo -e "${red}无效选项，请输入有效序号�?{plain}\n"
+                echo -e "${red}无效选项，请输入有效序号。${plain}\n"
                 show_log
                 ;;
         esac
@@ -775,7 +775,7 @@ bbr_persist_qdisc() {
 }
 
 bbr_enable_native() {
-    LOGI "正在启用系统原生 BBR 加�?.."
+    LOGI "正在启用系统原生 BBR 加速..."
     bbr_load_qdisc_module "fq"
     bbr_apply_qdisc_interfaces "fq"
 
@@ -794,16 +794,24 @@ EOF
     local new_algo=$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null)
     local new_qdisc=$(sysctl -n net.core.default_qdisc 2>/dev/null)
     if [[ "$new_algo" == "bbr" ]]; then
-        LOGI "已成功启�?BBR 加速！(拥塞算法: ${new_algo}, 队列调度: ${new_qdisc})"
+        LOGI "已成功启用 BBR 加速！(拥塞算法: ${new_algo}, 队列调度: ${new_qdisc})"
     else
-        LOGE "启用 BBR 失败，当前内核可能缺�?tcp_bbr 模块支持。当前拥塞算法为: ${new_algo}"
+        LOGE "启用 BBR 失败，当前内核可能缺少 tcp_bbr 模块支持。当前拥塞算法为: ${new_algo}"
     fi
     before_bbr_menu
 }
 
 bbr_switch_qdisc_menu() {
     echo -e "
-╔────────────────────────────────────────────────�?�?          请选择要切换的队列调度算法           �?│────────────────────────────────────────────────�?�?  ${green}1.${plain} FQ (Fair Queueing - 推荐默认)              �?�?  ${green}2.${plain} FQ_CODEL (抗缓冲膨胀/低延�?               �?�?  ${green}3.${plain} CAKE (Comprehensive Queue Management)     �?�?  ${green}4.${plain} FQ_PIE (Proportional Integral controller) �?�?  ${green}0.${plain} 返回上一�?                               �?╚────────────────────────────────────────────────�?
+╔────────────────────────────────────────────────╗
+│           请选择要切换的队列调度算法           │
+│────────────────────────────────────────────────│
+│   ${green}1.${plain} FQ (Fair Queueing - 推荐默认)              │
+│   ${green}2.${plain} FQ_CODEL (抗缓冲膨胀/低延迟)               │
+│   ${green}3.${plain} CAKE (Comprehensive Queue Management)     │
+│   ${green}4.${plain} FQ_PIE (Proportional Integral controller) │
+│   ${green}0.${plain} 返回上一级                                │
+╚────────────────────────────────────────────────╝"
     read -rp "请输入选项 [0-4]: " q_choice
     local target_qdisc=""
     case "$q_choice" in
@@ -812,12 +820,12 @@ bbr_switch_qdisc_menu() {
         3) target_qdisc="cake" ;;
         4) target_qdisc="fq_pie" ;;
         0) bbr_menu; return ;;
-        *) LOGE "输入无效序号�?; bbr_switch_qdisc_menu; return ;;
+        *) LOGE "输入无效序号！"; bbr_switch_qdisc_menu; return ;;
     esac
 
     LOGI "正在尝试加载并切换队列调度算法至 ${target_qdisc}..."
     if ! bbr_load_qdisc_module "$target_qdisc"; then
-        LOGE "当前内核缺少 sch_${target_qdisc} 模块，无法切换至 ${target_qdisc}�?
+        LOGE "当前内核缺少 sch_${target_qdisc} 模块，无法切换至 ${target_qdisc}。"
         before_bbr_menu
         return 1
     fi
@@ -861,7 +869,7 @@ net.ipv4.tcp_limit_output_bytes = 4194304
 net.ipv4.tcp_slow_start_after_idle = 0
 EOF
     sysctl --system >/dev/null 2>&1 || sysctl -p >/dev/null 2>&1
-    LOGI "�?亚太/跨国线路 TCP 调优已生效并永久写入: $XUI_BBR_SYSCTL"
+    LOGI "✔ 亚太/跨国线路 TCP 调优已生效并永久写入: $XUI_BBR_SYSCTL"
     before_bbr_menu
 }
 
@@ -881,12 +889,15 @@ bbr_get_ram_cap_mb() {
 
 bbr_apply_smart_tuning() {
     echo -e "
-╔────────────────────────────────────────────────�?�?          BBR 智能带宽与延迟缓冲优�?          �?│────────────────────────────────────────────────�?�?说明：根据节点真实带宽与跨国 RTT 延迟，结合系统│
-�?内存保护上限，自动计算并配置最�?TCP 缓冲大小。│
-╚────────────────────────────────────────────────�?
+╔────────────────────────────────────────────────╗
+│           BBR 智能带宽与延迟缓冲优化           │
+│────────────────────────────────────────────────│
+│ 说明：根据节点真实带宽与跨国 RTT 延迟，结合系统│
+│ 内存保护上限，自动计算并配置最优 TCP 缓冲大小。│
+╚────────────────────────────────────────────────╝"
 
     local bandwidth_mbps=""
-    read -rp "请输入节点上传带�?(Mbps，直接回车默�?1000): " bandwidth_mbps
+    read -rp "请输入节点上传带宽 (Mbps，直接回车默认 1000): " bandwidth_mbps
     bandwidth_mbps="${bandwidth_mbps:-1000}"
     if ! [[ "$bandwidth_mbps" =~ ^[0-9]+$ ]] || (( bandwidth_mbps <= 0 )); then
         bandwidth_mbps=1000
@@ -894,8 +905,8 @@ bbr_apply_smart_tuning() {
 
     echo -e "\n请选择网络主要链路模式:"
     echo -e " 1. 亚太区域线路 (通常 RTT < 100ms)"
-    echo -e " 2. 欧美/跨大洲线�?(通常 RTT 150-300ms)"
-    read -rp "请选择 [1-2，默�?1]: " mode_choice
+    echo -e " 2. 欧美/跨大洲线路 (通常 RTT 150-300ms)"
+    read -rp "请选择 [1-2，默认 1]: " mode_choice
     mode_choice="${mode_choice:-1}"
 
     local cap_mb
@@ -956,16 +967,22 @@ net.ipv4.tcp_limit_output_bytes = $output_bytes
 net.ipv4.tcp_slow_start_after_idle = 0
 EOF
     sysctl --system >/dev/null 2>&1 || sysctl -p >/dev/null 2>&1
-    LOGI "�?智能带宽优化配置已生效并持久化！"
+    LOGI "✔ 智能带宽优化配置已生效并持久化！"
     before_bbr_menu
 }
 
 bbr_apply_extreme_tuning() {
     echo -e "
-╔────────────────────────────────────────────────�?�?          BBR 极限测速挑战模�?(疯批模式)      �?│────────────────────────────────────────────────�?�?${red}警告：该模式专用于自有链路极限测速压榨吞吐！${plain}    �?�?会显著拉大缓冲区(1GB)及网卡队列长�?100000)�? �?�?日常多用户生产环境可能增加内存占用与排队抖动�?�?╚────────────────────────────────────────────────�?
+╔────────────────────────────────────────────────╗
+│           BBR 极限测速挑战模式 (疯批模式)      │
+│────────────────────────────────────────────────│
+│ ${red}警告：该模式专用于自有链路极限测速压榨吞吐！${plain}    │
+│ 会显著拉大缓冲区(1GB)及网卡队列长度(100000)，  │
+│ 日常多用户生产环境可能增加内存占用与排队抖动。 │
+╚────────────────────────────────────────────────╝"
     confirm "是否确认开启极限测速挑战模式？" "n" || { bbr_menu; return 0; }
 
-    LOGI "正在配置极限测速参�?.."
+    LOGI "正在配置极限测速参数..."
     local buffer_bytes="1073741824"
     local output_bytes="268435456"
     local backlog="1000000"
@@ -1027,13 +1044,13 @@ net.ipv4.tcp_moderate_rcvbuf = 1
 net.ipv4.tcp_ecn = 0
 EOF
     sysctl --system >/dev/null 2>&1 || sysctl -p >/dev/null 2>&1
-    LOGI "�?极限测速挑战模式已配置完成�?
+    LOGI "✔ 极限测速挑战模式已配置完成！"
     before_bbr_menu
 }
 
 bbr_clear_all_tuning() {
-    confirm "确认清空所�?BBR 网络优化参数并恢复系统默认？" "y" || { bbr_menu; return 0; }
-    LOGI "正在清空所有网络优化参�?.."
+    confirm "确认清空所有 BBR 网络优化参数并恢复系统默认？" "y" || { bbr_menu; return 0; }
+    LOGI "正在清空所有网络优化参数..."
     bbr_clean_sysctl
     rm -f "$XUI_QDISC_MODULES"
 
@@ -1041,7 +1058,7 @@ bbr_clear_all_tuning() {
     sysctl -w net.ipv4.tcp_congestion_control="cubic" >/dev/null 2>&1 || true
     sysctl --system >/dev/null 2>&1 || sysctl -p >/dev/null 2>&1 || true
 
-    LOGI "�?已成功清空优化配置并恢复系统默认设置 (CUBIC + pfifo_fast)�?
+    LOGI "✔ 已成功清空优化配置并恢复系统默认设置 (CUBIC + pfifo_fast)。"
     before_bbr_menu
 }
 
@@ -1049,26 +1066,26 @@ bbr_v3_assert_env() {
     local virt
     virt=$(bbr_detect_virt)
     if [[ "$virt" =~ ^(lxc|openvz|docker|podman|container) ]]; then
-        LOGE "检测到当前处于容器虚拟化环�?(${virt})，无法更换宿主机内核�?
-        LOGW "提示：容器与宿主机共享内核。请使用选项 1-6 启用原生 BBR 加速与网络调优�?
+        LOGE "检测到当前处于容器虚拟化环境 (${virt})，无法更换宿主机内核！"
+        LOGW "提示：容器与宿主机共享内核。请使用选项 1-6 启用原生 BBR 加速与网络调优。"
         return 1
     fi
 
     if [[ "$release" != "ubuntu" && "$release" != "debian" ]]; then
-        LOGE "BBR v3 预编译内核仅支持 Ubuntu 24.04+ �?Debian 12+ 系统�?
-        LOGW "您当前的系统�? ${release}。建议直接使用选项 1-6 启用原生 BBR �?TCP 优化�?
+        LOGE "BBR v3 预编译内核仅支持 Ubuntu 24.04+ 及 Debian 12+ 系统。"
+        LOGW "您当前的系统为: ${release}。建议直接使用选项 1-6 启用原生 BBR 及 TCP 优化。"
         return 1
     fi
 
     local arch
     arch=$(uname -m)
     if [[ "$arch" != "x86_64" && "$arch" != "aarch64" ]]; then
-        LOGE "BBR v3 预编译内核仅支持 x86_64 �?aarch64 (ARM64) 架构，当前架构为: ${arch}"
+        LOGE "BBR v3 预编译内核仅支持 x86_64 及 aarch64 (ARM64) 架构，当前架构为: ${arch}"
         return 1
     fi
 
     if ! command -v dpkg >/dev/null 2>&1 || ! command -v apt-get >/dev/null 2>&1; then
-        LOGE "当前系统缺少 dpkg �?apt-get 工具，无法安装内核包�?
+        LOGE "当前系统缺少 dpkg 或 apt-get 工具，无法安装内核包。"
         return 1
     fi
 
@@ -1085,14 +1102,14 @@ bbr_v3_update_bootloader() {
     LOGI "正在更新系统引导加载程序 (update-grub)..."
     if command -v update-grub >/dev/null 2>&1; then
         if update-grub; then
-            LOGI "�?GRUB 引导配置更新成功�?
+            LOGI "✔ GRUB 引导配置更新成功！"
             return 0
         else
             LOGE "GRUB 引导更新失败，请检查引导配置！"
             return 1
         fi
     else
-        LOGW "未检测到 update-grub 命令，可能使用的是非 GRUB 引导（如 U-Boot），内核安装程序将尝试自动配置引导�?
+        LOGW "未检测到 update-grub 命令，可能使用的是非 GRUB 引导（如 U-Boot），内核安装程序将尝试自动配置引导。"
         return 0
     fi
 }
@@ -1108,7 +1125,7 @@ bbr_v3_download_and_install() {
     ')
 
     if [[ -z "$asset_urls" ]]; then
-        LOGE "未在 Release ${tag_name} 中找到适用的内核安装包�?
+        LOGE "未在 Release ${tag_name} 中找到适用的内核安装包！"
         return 1
     fi
 
@@ -1116,13 +1133,13 @@ bbr_v3_download_and_install() {
     rm -rf "$tmp_dir"
     mkdir -p "$tmp_dir"
 
-    LOGI "开始下�?BBR v3 内核�?(${tag_name})..."
+    LOGI "开始下载 BBR v3 内核包 (${tag_name})..."
     for url in $asset_urls; do
         local fname
         fname=$(basename "$url")
         LOGI "正在下载: $fname"
         if ! wget -q --show-progress "$url" -O "${tmp_dir}/${fname}"; then
-            LOGW "直接下载失败，尝试使用加速镜像下�?.."
+            LOGW "直接下载失败，尝试使用加速镜像下载..."
             if ! wget -q --show-progress "https://ghproxy.net/${url}" -O "${tmp_dir}/${fname}"; then
                 LOGE "下载失败: $url"
                 return 1
@@ -1132,12 +1149,12 @@ bbr_v3_download_and_install() {
 
     for deb_file in "$tmp_dir"/*.deb; do
         if ! dpkg-deb -I "$deb_file" >/dev/null 2>&1; then
-            LOGE "安装包完整性校验失�? $deb_file"
+            LOGE "安装包完整性校验失败: $deb_file"
             return 1
         fi
     done
 
-    LOGI "正在卸载已有旧版 joeyblog 内核�?.."
+    LOGI "正在卸载已有旧版 joeyblog 内核包..."
     local old_pkgs
     old_pkgs=$(dpkg -l 2>/dev/null | grep "joeyblog" | awk '{print $2}' | tr '\n' ' ')
     if [[ -n "$old_pkgs" ]]; then
@@ -1147,17 +1164,17 @@ bbr_v3_download_and_install() {
     LOGI "正在安装新版 BBR v3 内核..."
     if dpkg -i "$tmp_dir"/*.deb && bbr_v3_update_bootloader; then
         rm -rf "$tmp_dir"
-        LOGI "�?BBR v3 内核安装并配置成功！"
+        LOGI "✔ BBR v3 内核安装并配置成功！"
         confirm "新内核必须重启系统后方可生效，是否立即重启系统？" "y"
         if [[ $? == 0 ]]; then
             LOGI "系统正在重启..."
             reboot
         else
-            LOGW "操作完成，请稍后手动执行 'reboot' 重启系统以加�?BBR v3 内核�?
+            LOGW "操作完成，请稍后手动执行 'reboot' 重启系统以加载 BBR v3 内核。"
             before_bbr_menu
         fi
     else
-        LOGE "内核安装或引导配置失败！请检查系统状态，暂勿重启以防引导问题�?
+        LOGE "内核安装或引导配置失败！请检查系统状态，暂勿重启以防引导问题。"
         before_bbr_menu
     fi
 }
@@ -1166,8 +1183,14 @@ bbr_v3_install_latest() {
     bbr_v3_assert_env || { before_bbr_menu; return 1; }
 
     echo -e "
-╔────────────────────────────────────────────────�?�?          请选择要安装的 BBR v3 内核版本       �?│────────────────────────────────────────────────�?�?  ${green}1.${plain} BBR v3 标准�?(推荐日常稳定使用)          �?�?  ${green}2.${plain} BBR v3 Max 激进吞吐版 (极限测速与实验)    �?�?  ${green}0.${plain} 取消安装                                  �?╚────────────────────────────────────────────────�?
-    read -rp "请输入选项 [0-2，默�?1]: " profile_choice
+╔────────────────────────────────────────────────╗
+│           请选择要安装的 BBR v3 内核版本       │
+│────────────────────────────────────────────────│
+│   ${green}1.${plain} BBR v3 标准版 (推荐日常稳定使用)          │
+│   ${green}2.${plain} BBR v3 Max 激进吞吐版 (极限测速与实验)    │
+│   ${green}0.${plain} 取消安装                                  │
+╚────────────────────────────────────────────────╝"
+    read -rp "请输入选项 [0-2，默认 1]: " profile_choice
     profile_choice="${profile_choice:-1}"
     local profile="standard"
     if [[ "$profile_choice" == "2" ]]; then
@@ -1177,16 +1200,16 @@ bbr_v3_install_latest() {
         return 0
     fi
 
-    LOGI "正在�?GitHub 获取 BBR v3 最�?Release 信息..."
+    LOGI "正在从 GitHub 获取 BBR v3 最新 Release 信息..."
     local release_json
     release_json=$(curl -fsSL "$BBR_GITHUB_API")
     if [[ -z "$release_json" ]]; then
-        LOGW "直接连接 GitHub 失败，尝试备用接�?.."
+        LOGW "直接连接 GitHub 失败，尝试备用接口..."
         release_json=$(curl -fsSL "https://ghproxy.net/${BBR_GITHUB_API}")
     fi
 
     if [[ -z "$release_json" ]]; then
-        LOGE "获取 GitHub Releases 信息失败，请检查网络连接�?
+        LOGE "获取 GitHub Releases 信息失败，请检查网络连接。"
         before_bbr_menu
         return 1
     fi
@@ -1206,12 +1229,12 @@ bbr_v3_install_latest() {
     ')
 
     if [[ -z "$latest_tag" || "$latest_tag" == "null" ]]; then
-        LOGE "未检索到适用于架�?${arch} �?BBR v3 (${profile}) 内核版本�?
+        LOGE "未检索到适用于架构 ${arch} 的 BBR v3 (${profile}) 内核版本！"
         before_bbr_menu
         return 1
     fi
 
-    LOGI "匹配到最新可用版�? ${latest_tag}"
+    LOGI "匹配到最新可用版本: ${latest_tag}"
     confirm "是否开始下载并安装此版本？" "y" || { bbr_menu; return 0; }
     bbr_v3_download_and_install "$release_json" "$latest_tag"
 }
@@ -1219,14 +1242,14 @@ bbr_v3_install_latest() {
 bbr_v3_install_specific() {
     bbr_v3_assert_env || { before_bbr_menu; return 1; }
 
-    LOGI "正在检索所有可�?BBR v3 版本列表..."
+    LOGI "正在检索所有可用 BBR v3 版本列表..."
     local release_json
     release_json=$(curl -fsSL "$BBR_GITHUB_API")
     if [[ -z "$release_json" ]]; then
         release_json=$(curl -fsSL "https://ghproxy.net/${BBR_GITHUB_API}")
     fi
     if [[ -z "$release_json" ]]; then
-        LOGE "获取版本信息失败，请检查网络连接�?
+        LOGE "获取版本信息失败，请检查网络连接。"
         before_bbr_menu
         return 1
     fi
@@ -1243,13 +1266,15 @@ bbr_v3_install_specific() {
     ')
 
     if [[ -z "$tag_list" ]]; then
-        LOGE "未找到适用于当前架�?(${arch}) 的版本�?
+        LOGE "未找到适用于当前架构 (${arch}) 的版本。"
         before_bbr_menu
         return 1
     fi
 
     echo -e "
-╔────────────────────────────────────────────────�?�?          适用于当前架构的可安装版�?          �?│────────────────────────────────────────────────�?
+╔────────────────────────────────────────────────╗
+│           适用于当前架构的可安装版本           │
+│────────────────────────────────────────────────│"
     local tags=()
     local idx=1
     while IFS= read -r tag; do
@@ -1259,22 +1284,22 @@ bbr_v3_install_specific() {
         idx=$((idx + 1))
     done <<< "$tag_list"
     echo -e "   ${green}0.${plain} 返回
-╚────────────────────────────────────────────────�?
+╚────────────────────────────────────────────────╝"
 
-    read -rp "请输入要安装的版本编�?[0-${#tags[@]}]: " tag_choice
+    read -rp "请输入要安装的版本编号 [0-${#tags[@]}]: " tag_choice
     if [[ "$tag_choice" == "0" || -z "$tag_choice" ]]; then
         bbr_menu
         return 0
     fi
     if ! [[ "$tag_choice" =~ ^[0-9]+$ ]] || (( tag_choice < 1 || tag_choice > ${#tags[@]} )); then
-        LOGE "输入编号无效�?
+        LOGE "输入编号无效！"
         before_bbr_menu
         return 1
     fi
 
     local selected_tag="${tags[$((tag_choice - 1))]}"
     LOGI "已选择版本: ${selected_tag}"
-    confirm "确认下载并安�?${selected_tag}�? "y" || { bbr_menu; return 0; }
+    confirm "确认下载并安装 ${selected_tag}？" "y" || { bbr_menu; return 0; }
     bbr_v3_download_and_install "$release_json" "$selected_tag"
 }
 
@@ -1284,29 +1309,29 @@ bbr_v3_uninstall() {
     local installed_pkgs
     installed_pkgs=$(dpkg -l 2>/dev/null | grep "joeyblog" | awk '{print $2}' | tr '\n' ' ')
     if [[ -z "$installed_pkgs" ]]; then
-        LOGW "系统中未检测到安装过的 BBR v3 (joeyblog) 内核包�?
+        LOGW "系统中未检测到安装过的 BBR v3 (joeyblog) 内核包。"
         before_bbr_menu
         return 0
     fi
 
-    LOGW "检测到以下已安装的内核�?\n${installed_pkgs}"
-    confirm "是否确认卸载这些 BBR v3 内核包并恢复系统默认内核�? "n" || { bbr_menu; return 0; }
+    LOGW "检测到以下已安装的内核包:\n${installed_pkgs}"
+    confirm "是否确认卸载这些 BBR v3 内核包并恢复系统默认内核？" "n" || { bbr_menu; return 0; }
 
-    LOGI "正在卸载 BBR v3 内核�?.."
+    LOGI "正在卸载 BBR v3 内核包..."
     apt-get remove --purge -y $installed_pkgs
     bbr_v3_update_bootloader
-    LOGI "�?内核包卸载完成！"
-    confirm "需要重启系统以切换回原有内核，是否立即重启�? "y"
+    LOGI "✔ 内核包卸载完成！"
+    confirm "需要重启系统以切换回原有内核，是否立即重启？" "y"
     if [[ $? == 0 ]]; then
         reboot
     else
-        LOGW "请记得稍后手动执�?'reboot' 重启系统�?
+        LOGW "请记得稍后手动执行 'reboot' 重启系统。"
         before_bbr_menu
     fi
 }
 
 bbr_apply_security_mitigations() {
-    LOGI "正在应用 Linux 内核漏洞缓解策略 (Dirty Frag �?..."
+    LOGI "正在应用 Linux 内核漏洞缓解策略 (Dirty Frag 等)..."
     mkdir -p /etc/modprobe.d
     touch "$XUI_SECURITY_MODPROBE"
 
@@ -1330,7 +1355,7 @@ bbr_apply_security_mitigations() {
         fi
     done
 
-    LOGI "�?安全策略已写�? ${XUI_SECURITY_MODPROBE}，隐患模块已禁用或卸载�?
+    LOGI "✔ 安全策略已写入: ${XUI_SECURITY_MODPROBE}，隐患模块已禁用或卸载。"
     before_bbr_menu
 }
 
@@ -1346,17 +1371,17 @@ bbr_menu() {
     mod_ver=$(modinfo tcp_bbr 2>/dev/null | awk '/^version:/ {print $2}')
     if [[ "$cur_algo" == "bbr" ]]; then
         if [[ "$mod_ver" == "3" ]] || [[ "$kernel_ver" =~ (bbrv3|joeyblog) ]]; then
-            bbr_status="${green}BBR v3 (已启�?${plain}"
+            bbr_status="${green}BBR v3 (已启用)${plain}"
         else
-            bbr_status="${green}原生 BBR (已启�?${plain}"
+            bbr_status="${green}原生 BBR (已启用)${plain}"
         fi
     else
-        bbr_status="${yellow}未启�?(${cur_algo})${plain}"
+        bbr_status="${yellow}未启用 (${cur_algo})${plain}"
     fi
 
     if [[ -f "$XUI_BBR_SYSCTL" ]]; then
         if grep -q "1073741824" "$XUI_BBR_SYSCTL" 2>/dev/null; then
-            tuning_status="${green}极限测速模�?{plain}"
+            tuning_status="${green}极限测速模式${plain}"
         elif grep -q "tcp_limit_output_bytes" "$XUI_BBR_SYSCTL" 2>/dev/null; then
             tuning_status="${green}亚太/跨国 TCP 调优${plain}"
         else
@@ -1369,11 +1394,30 @@ bbr_menu() {
     fi
 
     echo -e "
-╔────────────────────────────────────────────────�?�?         ${green}3X-UI BBR 网络加速与内核管理${plain}          �?│────────────────────────────────────────────────�?�? 系统架构: ${green}${arch}${plain}       虚拟环境: ${green}${virt}${plain}
-�? 当前内核: ${green}${kernel_ver}${plain}
-�? 拥塞算法: ${bbr_status}     队列算法: ${green}${cur_qdisc}${plain}
-�? 优化状�? ${tuning_status}
-│────────────────────────────────────────────────�?�? ${green}【通用调优 (免换内核/支持所有环�?�?{plain}          �?�?  ${green}1.${plain} 一键开启系统原�?BBR 加�?                  �?�?  ${green}2.${plain} 切换队列调度算法 (FQ / Cake / CoDel)        �?�?  ${green}3.${plain} 应用亚太/跨国线路 TCP 智能调优             �?�?  ${green}4.${plain} 智能带宽与延迟缓冲优�?(结合测�?延迟)     �?�?  ${green}5.${plain} 启用极限测速挑战模�?(榨干带宽吞吐)         �?�?  ${green}6.${plain} 清空网络优化配置 (恢复系统默认参数)         �?│────────────────────────────────────────────────�?�? ${green}【BBR v3 内核管理 (仅限 Debian/Ubuntu KVM)�?{plain}   �?�?  ${green}7.${plain} 安装 / 更新 BBR v3 最新内�?               �?�?  ${green}8.${plain} 选择指定版本安装 BBR v3 内核               �?�?  ${green}9.${plain} 卸载已安装的 BBR v3 内核                   �?�? ${green}10.${plain} Linux 内核安全加固 (Dirty Frag 缓解)       �?│────────────────────────────────────────────────�?�?  ${green}0.${plain} 返回主菜�?                               �?╚────────────────────────────────────────────────�?
+╔────────────────────────────────────────────────╗
+│          ${green}3X-UI BBR 网络加速与内核管理${plain}          │
+│────────────────────────────────────────────────│
+│  系统架构: ${green}${arch}${plain}       虚拟环境: ${green}${virt}${plain}
+│  当前内核: ${green}${kernel_ver}${plain}
+│  拥塞算法: ${bbr_status}     队列算法: ${green}${cur_qdisc}${plain}
+│  优化状态: ${tuning_status}
+│────────────────────────────────────────────────│
+│  ${green}【通用调优 (免换内核/支持所有环境)】${plain}          │
+│   ${green}1.${plain} 一键开启系统原生 BBR 加速                   │
+│   ${green}2.${plain} 切换队列调度算法 (FQ / Cake / CoDel)        │
+│   ${green}3.${plain} 应用亚太/跨国线路 TCP 智能调优             │
+│   ${green}4.${plain} 智能带宽与延迟缓冲优化 (结合测速/延迟)     │
+│   ${green}5.${plain} 启用极限测速挑战模式 (榨干带宽吞吐)         │
+│   ${green}6.${plain} 清空网络优化配置 (恢复系统默认参数)         │
+│────────────────────────────────────────────────│
+│  ${green}【BBR v3 内核管理 (仅限 Debian/Ubuntu KVM)】${plain}   │
+│   ${green}7.${plain} 安装 / 更新 BBR v3 最新内核                │
+│   ${green}8.${plain} 选择指定版本安装 BBR v3 内核               │
+│   ${green}9.${plain} 卸载已安装的 BBR v3 内核                   │
+│  ${green}10.${plain} Linux 内核安全加固 (Dirty Frag 缓解)       │
+│────────────────────────────────────────────────│
+│   ${green}0.${plain} 返回主菜单                                │
+╚────────────────────────────────────────────────╝"
 
     read -rp "请输入选项 [0-10]: " bbr_choice
     case "$bbr_choice" in
@@ -1410,7 +1454,7 @@ update_shell() {
     chmod +x /usr/bin/x-ui
     if [[ $? != 0 ]]; then
         echo ""
-        LOGE "下载脚本失败，请检查服务器是否能正常访�?GitHub"
+        LOGE "下载脚本失败，请检查服务器是否能正常访问 GitHub"
         before_show_menu
     else
         LOGI "脚本升级成功，请重新运行脚本"
@@ -1491,15 +1535,15 @@ show_status() {
     check_status
     case $? in
         0)
-            echo -e "面板状�? ${green}正在运行${plain}"
+            echo -e "面板状态: ${green}正在运行${plain}"
             show_enable_status
             ;;
         1)
-            echo -e "面板状�? ${yellow}未运�?{plain}"
+            echo -e "面板状态: ${yellow}未运行${plain}"
             show_enable_status
             ;;
         2)
-            echo -e "面板状�? ${red}未安�?{plain}"
+            echo -e "面板状态: ${red}未安装${plain}"
             ;;
     esac
     show_xray_status
@@ -1508,9 +1552,9 @@ show_status() {
 show_enable_status() {
     check_enabled
     if [[ $? == 0 ]]; then
-        echo -e "开机自�? ${green}已启�?{plain}"
+        echo -e "开机自启: ${green}已启用${plain}"
     else
-        echo -e "开机自�? ${red}未启�?{plain}"
+        echo -e "开机自启: ${red}未启用${plain}"
     fi
 }
 
@@ -1526,21 +1570,21 @@ check_xray_status() {
 show_xray_status() {
     check_xray_status
     if [[ $? == 0 ]]; then
-        echo -e "Xray 状�? ${green}正在运行${plain}"
+        echo -e "Xray 状态: ${green}正在运行${plain}"
     else
-        echo -e "Xray 状�? ${red}未运�?{plain}"
+        echo -e "Xray 状态: ${red}未运行${plain}"
     fi
 }
 
 firewall_menu() {
     echo -e "${green}\t1.${plain} ${green}Install${plain} Firewall"
-    echo -e "${green}\t2.${plain} 端口放行列表 (带编�?"
+    echo -e "${green}\t2.${plain} 端口放行列表 (带编号)"
     echo -e "${green}\t3.${plain} ${green}Open${plain} Ports"
     echo -e "${green}\t4.${plain} ${red}删除${plain} 放行端口规则"
     echo -e "${green}\t5.${plain} ${green}Enable${plain} Firewall"
     echo -e "${green}\t6.${plain} ${red}Disable${plain} Firewall"
-    echo -e "${green}\t7.${plain} 防火墙运行状�?
-    echo -e "${green}\t0.${plain} 返回主菜�?
+    echo -e "${green}\t7.${plain} 防火墙运行状态"
+    echo -e "${green}\t0.${plain} 返回主菜单"
     read -rp "Choose an option: " choice
     case "$choice" in
         0)
@@ -1575,7 +1619,7 @@ firewall_menu() {
             firewall_menu
             ;;
         *)
-            echo -e "${red}无效选项，请输入有效序号�?{plain}\n"
+            echo -e "${red}无效选项，请输入有效序号。${plain}\n"
             firewall_menu
             ;;
     esac
@@ -1583,7 +1627,7 @@ firewall_menu() {
 
 install_firewall() {
     if ! command -v ufw &> /dev/null; then
-        echo "检测到未安�?ufw 防火墙，正在安装..."
+        echo "检测到未安装 ufw 防火墙，正在安装..."
         apt-get update
         apt-get install -y ufw
     else
@@ -1592,7 +1636,7 @@ install_firewall() {
 
     # Check if the firewall is inactive
     if ufw status | grep -q "Status: active"; then
-        echo "防火墙已处于激活状�?
+        echo "防火墙已处于激活状态"
     else
         echo "正在激活防火墙..."
         # Open the necessary ports
@@ -1609,11 +1653,11 @@ install_firewall() {
 
 open_ports() {
     # Prompt the user to enter the ports they want to open
-    read -rp "请输入要开放的端口 (例如 80,443,2053 或范�?400-500): " ports
+    read -rp "请输入要开放的端口 (例如 80,443,2053 或范围 400-500): " ports
 
     # Check if the input is valid
     if ! [[ $ports =~ ^([0-9]+|[0-9]+-[0-9]+)(,([0-9]+|[0-9]+-[0-9]+))*$ ]]; then
-        echo "错误: 输入无效，请输入以逗号分隔的端口列表或端口范围 (例如 80,443,2053 �?400-500)�? >&2
+        echo "错误: 输入无效，请输入以逗号分隔的端口列表或端口范围 (例如 80,443,2053 或 400-500)。" >&2
         exit 1
     fi
 
@@ -1634,7 +1678,7 @@ open_ports() {
     done
 
     # Confirm that the ports are opened
-    echo "已成功开放指定端�?"
+    echo "已成功开放指定端口:"
     for port in "${PORT_LIST[@]}"; do
         if [[ $port == *-* ]]; then
             start_port=$(echo $port | cut -d'-' -f1)
@@ -1650,22 +1694,22 @@ open_ports() {
 
 delete_ports() {
     # Display current rules with numbers
-    echo "当前 UFW 防火墙规�?"
+    echo "当前 UFW 防火墙规则:"
     ufw status numbered
 
     # Ask the user how they want to delete rules
-    echo "请选择删除规则的方�?"
-    echo "1) 按规则编号删�?
+    echo "请选择删除规则的方式:"
+    echo "1) 按规则编号删除"
     echo "2) Ports"
-    read -rp "请输入您的选择 (1 �?2): " choice
+    read -rp "请输入您的选择 (1 或 2): " choice
 
     if [[ $choice -eq 1 ]]; then
         # Deleting by rule numbers
-        read -rp "请输入要删除的规则编�?(例如 1, 2 �?: " rule_numbers
+        read -rp "请输入要删除的规则编号 (例如 1, 2 等): " rule_numbers
 
         # Validate the input
         if ! [[ $rule_numbers =~ ^([0-9]+)(,[0-9]+)*$ ]]; then
-            echo "错误: 输入无效，请输入以逗号分隔的规则编号列表�? >&2
+            echo "错误: 输入无效，请输入以逗号分隔的规则编号列表。" >&2
             exit 1
         fi
 
@@ -1676,15 +1720,15 @@ delete_ports() {
             ufw delete "$rule_number" || echo "Failed to delete rule number $rule_number"
         done
 
-        echo "所选规则已成功删除�?
+        echo "所选规则已成功删除。"
 
     elif [[ $choice -eq 2 ]]; then
         # Deleting by ports
-        read -rp "请输入要关闭删除的端�?(例如 80,443,2053 �?400-500): " ports
+        read -rp "请输入要关闭删除的端口 (例如 80,443,2053 或 400-500): " ports
 
         # Validate the input
         if ! [[ $ports =~ ^([0-9]+|[0-9]+-[0-9]+)(,([0-9]+|[0-9]+-[0-9]+))*$ ]]; then
-            echo "错误: 输入无效，请输入以逗号分隔的端口列表或端口范围 (例如 80,443,2053 �?400-500)�? >&2
+            echo "错误: 输入无效，请输入以逗号分隔的端口列表或端口范围 (例如 80,443,2053 或 400-500)。" >&2
             exit 1
         fi
 
@@ -1718,7 +1762,7 @@ delete_ports() {
             fi
         done
     else
-        echo "${red}错误:${plain} 选择无效，请输入 1 �?2�? >&2
+        echo "${red}错误:${plain} 选择无效，请输入 1 或 2。" >&2
         exit 1
     fi
 }
@@ -1765,13 +1809,13 @@ update_geofiles() {
 }
 
 update_geo() {
-    echo -e "${green}\t1.${plain} 全球常规规则�?Loyalsoldier (geoip.dat, geosite.dat)"
-    echo -e "${green}\t2.${plain} 伊朗地区规则�?chocolate4u (geoip_IR.dat, geosite_IR.dat)"
+    echo -e "${green}\t1.${plain} 全球常规规则库 Loyalsoldier (geoip.dat, geosite.dat)"
+    echo -e "${green}\t2.${plain} 伊朗地区规则库 chocolate4u (geoip_IR.dat, geosite_IR.dat)"
     echo -e "${green}\t3.${plain} 俄罗斯地区规则库 runetfreedom (geoip_RU.dat, geosite_RU.dat)"
-    echo -e "${green}\t4.${plain} AI 专属分流规则�?MyAI (geosite_myai.dat)"
-    echo -e "${green}\t5.${plain} �?IP 质量/欺诈�?Ping 诊断�?(geosite_ping.dat)"
-    echo -e "${green}\t6.${plain} 更新全部规则�?(包含 MyAI、Ping 及所有规�?"
-    echo -e "${green}\t0.${plain} 返回主菜�?
+    echo -e "${green}\t4.${plain} AI 专属分流规则库 MyAI (geosite_myai.dat)"
+    echo -e "${green}\t5.${plain} 纯 IP 质量/欺诈分/Ping 诊断库 (geosite_ping.dat)"
+    echo -e "${green}\t6.${plain} 更新全部规则库 (包含 MyAI、Ping 及所有规则)"
+    echo -e "${green}\t0.${plain} 返回主菜单"
     read -rp "请输入选项序号 [0-6]: " choice
 
     case "$choice" in
@@ -1805,11 +1849,11 @@ update_geo() {
             ;;
         6)
             update_all_geofiles
-            echo -e "${green}所�?Geo 资源文件已成功更新！${plain}"
+            echo -e "${green}所有 Geo 资源文件已成功更新！${plain}"
             restart
             ;;
         *)
-            echo -e "${red}无效选项，请输入有效序号�?{plain}\n"
+            echo -e "${red}无效选项，请输入有效序号。${plain}\n"
             update_geo
             ;;
     esac
@@ -1820,7 +1864,7 @@ update_geo() {
 install_acme() {
     # Check if acme.sh is already installed
     if command -v ~/.acme.sh/acme.sh &> /dev/null || [ -f "$HOME/.acme.sh/acme.sh" ]; then
-        LOGI "acme.sh 已安装�?
+        LOGI "acme.sh 已安装。"
         return 0
     fi
 
@@ -1847,9 +1891,9 @@ ssl_cert_issue_main() {
     echo -e "${green}\t2.${plain} 吊销证书"
     echo -e "${green}\t3.${plain} 强制续签"
     echo -e "${green}\t4.${plain} 查看已申请域名及证书路径"
-    echo -e "${green}\t5.${plain} 配置面板的证书路�?
-    echo -e "${green}\t6.${plain} 申请 IP 地址 SSL 证书 (6天有效期，自动续�?"
-    echo -e "${green}\t0.${plain} 返回主菜�?
+    echo -e "${green}\t5.${plain} 配置面板的证书路径"
+    echo -e "${green}\t6.${plain} 申请 IP 地址 SSL 证书 (6天有效期，自动续签)"
+    echo -e "${green}\t0.${plain} 返回主菜单"
 
     read -rp "请选择一个选项: " choice
     case "$choice" in
@@ -1863,16 +1907,16 @@ ssl_cert_issue_main() {
         2)
             local domains=$(find /root/cert/ -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
             if [ -z "$domains" ]; then
-                echo "未找到可吊销的证书�?
+                echo "未找到可吊销的证书。"
             else
                 echo "已存在的域名:"
                 echo "$domains"
-                read -rp "请输入列表中要吊销证书的域�? " domain
+                read -rp "请输入列表中要吊销证书的域名: " domain
                 if echo "$domains" | grep -qw "$domain"; then
                     ~/.acme.sh/acme.sh --revoke -d ${domain}
-                    LOGI "已成功吊销域名 $domain 的证�?
+                    LOGI "已成功吊销域名 $domain 的证书"
                 else
-                    echo "输入的域名无效�?
+                    echo "输入的域名无效。"
                 fi
             fi
             ssl_cert_issue_main
@@ -1880,16 +1924,16 @@ ssl_cert_issue_main() {
         3)
             local domains=$(find /root/cert/ -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
             if [ -z "$domains" ]; then
-                echo "未找到可续签的证书�?
+                echo "未找到可续签的证书。"
             else
                 echo "已存在的域名:"
                 echo "$domains"
                 read -rp "请输入列表中要续签证书的域名: " domain
                 if echo "$domains" | grep -qw "$domain"; then
                     ~/.acme.sh/acme.sh --renew -d ${domain} --force
-                    LOGI "已成功强制续签域�?$domain 的证�?
+                    LOGI "已成功强制续签域名 $domain 的证书"
                 else
-                    echo "输入的域名无效�?
+                    echo "输入的域名无效。"
                 fi
             fi
             ssl_cert_issue_main
@@ -1897,7 +1941,7 @@ ssl_cert_issue_main() {
         4)
             local domains=$(find /root/cert/ -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
             if [ -z "$domains" ]; then
-                echo "未找到任何证书�?
+                echo "未找到任何证书。"
             else
                 echo "已有域名及其证书路径:"
                 for domain in $domains; do
@@ -1908,7 +1952,7 @@ ssl_cert_issue_main() {
                         echo -e "\t证书文件路径: ${cert_path}"
                         echo -e "\t私钥文件路径: ${key_path}"
                     else
-                        echo -e "域名: ${domain} - 证书或私钥文件缺失�?
+                        echo -e "域名: ${domain} - 证书或私钥文件缺失。"
                     fi
                 done
             fi
@@ -1917,9 +1961,9 @@ ssl_cert_issue_main() {
         5)
             local domains=$(find /root/cert/ -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
             if [ -z "$domains" ]; then
-                echo "未找到任何证书�?
+                echo "未找到任何证书。"
             else
-                echo "可选域�?"
+                echo "可选域名:"
                 echo "$domains"
                 read -rp "请选择一个域名以配置面板路径: " domain
 
@@ -1934,19 +1978,19 @@ ssl_cert_issue_main() {
                         echo "  - 私钥文件: $webKeyFile"
                         restart
                     else
-                        echo "错误: 未找到域�?$domain 的证书或私钥文件�?
+                        echo "错误: 未找到域名 $domain 的证书或私钥文件。"
                     fi
                 else
-                    echo "输入的域名无效�?
+                    echo "输入的域名无效。"
                 fi
             fi
             ssl_cert_issue_main
             ;;
         6)
             echo -e "${yellow}Let's Encrypt 公网 IP 地址 SSL 证书申请${plain}"
-            echo -e "此操作将使用 Let's Encrypt 短效模式为您的服务器公网 IP 申请 SSL 证书�?
-            echo -e "${yellow}证书有效期约�?6 天，将通过 acme.sh 自动续签�?{plain}"
-            echo -e "${yellow}必须向外网开�?80 端口以完成验证�?{plain}"
+            echo -e "此操作将使用 Let's Encrypt 短效模式为您的服务器公网 IP 申请 SSL 证书。"
+            echo -e "${yellow}证书有效期约为 6 天，将通过 acme.sh 自动续签。${plain}"
+            echo -e "${yellow}必须向外网开放 80 端口以完成验证。${plain}"
             confirm "您确定要继续吗？" "y"
             if [[ $? == 0 ]]; then
                 ssl_cert_issue_for_ip
@@ -1955,15 +1999,15 @@ ssl_cert_issue_main() {
             ;;
 
         *)
-            echo -e "${red}选项无效。请输入正确的选项数字�?{plain}\n"
+            echo -e "${red}选项无效。请输入正确的选项数字。${plain}\n"
             ssl_cert_issue_main
             ;;
     esac
 }
 
 ssl_cert_issue_for_ip() {
-    LOGI "正在开始为服务�?IP 自动生成 SSL 证书..."
-    LOGI "使用 Let's Encrypt 短效证书模式 (�?6 天有效期，自动续�?"
+    LOGI "正在开始为服务器 IP 自动生成 SSL 证书..."
+    LOGI "使用 Let's Encrypt 短效证书模式 (约 6 天有效期，自动续签)"
 
     local existing_webBasePath=$(${xui_folder}/x-ui setting -show true | grep -Eo 'webBasePath: .+' | awk '{print $2}')
     local existing_port=$(${xui_folder}/x-ui setting -show true | grep -Eo 'port: .+' | awk '{print $2}')
@@ -1989,27 +2033,27 @@ ssl_cert_issue_for_ip() {
     done
 
     if [[ -z "$server_ip" ]]; then
-        LOGI "无法从任何接口服务自动检测服务器的公�?IP�?
+        LOGI "无法从任何接口服务自动检测服务器的公网 IP。"
         while [[ -z "$server_ip" ]]; do
-            read -rp "请输入您服务�?s 的公�?IPv4 地址: " server_ip
+            read -rp "请输入您服务器's 的公网 IPv4 地址: " server_ip
             server_ip="${server_ip// /}"
             if [[ ! "$server_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                LOGE "无效�?IPv4 地址，请重新输入�?
+                LOGE "无效的 IPv4 地址，请重新输入。"
                 server_ip=""
             fi
         done
     fi
 
-    LOGI "检测到服务�?IP: ${server_ip}"
+    LOGI "检测到服务器 IP: ${server_ip}"
 
     # Ask for optional IPv6
     local ipv6_addr=""
-    read -rp "是否包含 IPv6 地址�?留空则跳�?: " ipv6_addr
+    read -rp "是否包含 IPv6 地址？(留空则跳过): " ipv6_addr
     ipv6_addr="${ipv6_addr// /}" # Trim whitespace
 
     # check for acme.sh first
     if ! command -v ~/.acme.sh/acme.sh &> /dev/null; then
-        LOGI "未找�?acme.sh，正在安�?.."
+        LOGI "未找到 acme.sh，正在安装..."
         install_acme
         if [ $? -ne 0 ]; then
             LOGE "安装 acme.sh 失败"
@@ -2042,7 +2086,7 @@ ssl_cert_issue_for_ip() {
             apk add socat curl openssl > /dev/null 2>&1
             ;;
         *)
-            LOGW "不支持自动安�?socat 的操作系�?
+            LOGW "不支持自动安装 socat 的操作系统"
             ;;
     esac
 
@@ -2059,36 +2103,36 @@ ssl_cert_issue_for_ip() {
 
     # Choose port for HTTP-01 listener (default 80, allow override)
     local WebPort=""
-    read -rp "请输入用�?ACME HTTP-01 验证的端�?(默认 80): " WebPort
+    read -rp "请输入用于 ACME HTTP-01 验证的端口 (默认 80): " WebPort
     WebPort="${WebPort:-80}"
     if ! [[ "${WebPort}" =~ ^[0-9]+$ ]] || ((WebPort < 1 || WebPort > 65535)); then
-        LOGE "输入端口无效，回退使用端口 80�?
+        LOGE "输入端口无效，回退使用端口 80。"
         WebPort=80
     fi
-    LOGI "使用端口 ${WebPort} �?IP ${server_ip} 申请证书"
+    LOGI "使用端口 ${WebPort} 为 IP ${server_ip} 申请证书"
     if [[ "${WebPort}" -ne 80 ]]; then
-        LOGI "提示: Let's Encrypt 仍会尝试连接 80 端口；请确保外网 80 端口已转发至 ${WebPort}�?
+        LOGI "提示: Let's Encrypt 仍会尝试连接 80 端口；请确保外网 80 端口已转发至 ${WebPort}。"
     fi
 
     while true; do
         if is_port_in_use "${WebPort}"; then
-            LOGI "端口 ${WebPort} 已被占用�?
+            LOGI "端口 ${WebPort} 已被占用。"
 
             local alt_port=""
-            read -rp "请输入另一个端口用�?acme.sh 监听 (留空则终�?: " alt_port
+            read -rp "请输入另一个端口用于 acme.sh 监听 (留空则终止): " alt_port
             alt_port="${alt_port// /}"
             if [[ -z "${alt_port}" ]]; then
-                LOGE "端口 ${WebPort} 繁忙，无法继续申请�?
+                LOGE "端口 ${WebPort} 繁忙，无法继续申请。"
                 return 1
             fi
             if ! [[ "${alt_port}" =~ ^[0-9]+$ ]] || ((alt_port < 1 || alt_port > 65535)); then
-                LOGE "输入的端口无效�?
+                LOGE "输入的端口无效。"
                 return 1
             fi
             WebPort="${alt_port}"
             continue
         else
-            LOGI "端口 ${WebPort} 空闲，可用于独立式验证�?
+            LOGI "端口 ${WebPort} 空闲，可用于独立式验证。"
             break
         fi
     done
@@ -2108,15 +2152,15 @@ ssl_cert_issue_for_ip() {
         --force
 
     if [ $? -ne 0 ]; then
-        LOGE "�?IP ${server_ip} 申请证书失败"
-        LOGE "请确保端�?${WebPort} 已开放且服务器可从外网访�?
+        LOGE "为 IP ${server_ip} 申请证书失败"
+        LOGE "请确保端口 ${WebPort} 已开放且服务器可从外网访问"
         # Cleanup acme.sh data for both IPv4 and IPv6 if specified
         rm -rf ~/.acme.sh/${server_ip} 2> /dev/null
         [[ -n "$ipv6_addr" ]] && rm -rf ~/.acme.sh/${ipv6_addr} 2> /dev/null
         rm -rf ${certPath} 2> /dev/null
         return 1
     else
-        LOGI "�?IP ${server_ip} 成功申请证书�?
+        LOGI "为 IP ${server_ip} 成功申请证书！"
     fi
 
     # Install the certificate
@@ -2155,16 +2199,16 @@ ssl_cert_issue_for_ip() {
             LOGI "已成功为 IP $server_ip 配置面板证书路径"
             LOGI "  - 证书文件: $webCertFile"
             LOGI "  - 私钥文件: $webKeyFile"
-            LOGI "  - 有效�? �?6 �?(通过 acme.sh 自动续签)"
+            LOGI "  - 有效期: 约 6 天 (通过 acme.sh 自动续签)"
             echo -e "${green}访问 URL: https://${server_ip}:${existing_port}${existing_webBasePath}${plain}"
-            LOGI "正在重启面板以应�?SSL 证书..."
+            LOGI "正在重启面板以应用 SSL 证书..."
             restart
         else
-            LOGE "错误: 未找�?IP $server_ip 的证书或私钥文件�?
+            LOGE "错误: 未找到 IP $server_ip 的证书或私钥文件。"
             return 1
         fi
     else
-        LOGI "已跳过面板证书路径配置�?
+        LOGI "已跳过面板证书路径配置。"
     fi
 
     return 0
@@ -2175,10 +2219,10 @@ ssl_cert_issue() {
     local existing_port=$(${xui_folder}/x-ui setting -show true | grep -Eo 'port: .+' | awk '{print $2}')
     # check for acme.sh first
     if ! command -v ~/.acme.sh/acme.sh &> /dev/null; then
-        echo "未找�?acme.sh，即将开始安�?
+        echo "未找到 acme.sh，即将开始安装"
         install_acme
         if [ $? -ne 0 ]; then
-            LOGE "安装 acme.sh 失败，请检查日�?
+            LOGE "安装 acme.sh 失败，请检查日志"
             exit 1
         fi
     fi
@@ -2208,11 +2252,11 @@ ssl_cert_issue() {
             apk add socat curl openssl > /dev/null 2>&1
             ;;
         *)
-            LOGW "当前系统不支持自动安�?socat，请手动安装"
+            LOGW "当前系统不支持自动安装 socat，请手动安装"
             ;;
     esac
     if [ $? -ne 0 ]; then
-        LOGE "安装 socat 失败，请检查日�?
+        LOGE "安装 socat 失败，请检查日志"
         exit 1
     else
         LOGI "安装 socat 成功..."
@@ -2221,22 +2265,22 @@ ssl_cert_issue() {
     # get the domain here, and we need to verify it
     local domain=""
     while true; do
-        read -rp "请输入您的域�? " domain
+        read -rp "请输入您的域名: " domain
         domain="${domain// /}" # Trim whitespace
 
         if [[ -z "$domain" ]]; then
-            LOGE "域名不能为空，请重新输入�?
+            LOGE "域名不能为空，请重新输入。"
             continue
         fi
 
         if ! is_domain "$domain"; then
-            LOGE "域名格式无效: ${domain}，请输入有效的域名�?
+            LOGE "域名格式无效: ${domain}，请输入有效的域名。"
             continue
         fi
 
         break
     done
-    LOGD "您设定的域名�? ${domain}，正在检�?DNS 解析..."
+    LOGD "您设定的域名为: ${domain}，正在检测 DNS 解析..."
     SSL_ISSUED_DOMAIN="${domain}"
 
     # DNS check
@@ -2244,19 +2288,19 @@ ssl_cert_issue() {
     local resolved_ip=$(resolve_domain "${domain}")
     if [[ -n "${public_ip}" && -n "${resolved_ip}" ]]; then
         if [[ "${public_ip}" != "${resolved_ip}" ]]; then
-            LOGW "警告: 您的域名解析�?IP ${resolved_ip}，而服务器公网 IP �?${public_ip}�?
-            LOGW "请确认域名的 DNS A 记录已正确指向本服务器的公网 IP�?
-            confirm "是否仍然继续尝试申请证书�? "n"
+            LOGW "警告: 您的域名解析至 IP ${resolved_ip}，而服务器公网 IP 为 ${public_ip}。"
+            LOGW "请确认域名的 DNS A 记录已正确指向本服务器的公网 IP。"
+            confirm "是否仍然继续尝试申请证书？" "n"
             if [[ $? -ne 0 ]]; then
                 return 1
             fi
         else
-            LOGI "域名 DNS 解析校验通过 (解析�?${resolved_ip})�?
+            LOGI "域名 DNS 解析校验通过 (解析为 ${resolved_ip})。"
         fi
     elif [[ -z "${resolved_ip}" ]]; then
-        LOGW "警告: 无法解析域名 ${domain} �?IP 地址�?
-        LOGW "请检查域名的 DNS 配置是否正确且已生效生效�?
-        confirm "是否仍然继续尝试申请证书�? "n"
+        LOGW "警告: 无法解析域名 ${domain} 的 IP 地址。"
+        LOGW "请检查域名的 DNS 配置是否正确且已生效生效。"
+        confirm "是否仍然继续尝试申请证书？" "n"
         if [[ $? -ne 0 ]]; then
             return 1
         fi
@@ -2267,10 +2311,10 @@ ssl_cert_issue() {
     if ~/.acme.sh/acme.sh --list 2> /dev/null | awk '{print $1}' | grep -Fxq "${domain}"; then
         cert_exists=1
         local certInfo=$(~/.acme.sh/acme.sh --list 2> /dev/null | grep -F "${domain}")
-        LOGI "检测到域名 ${domain} 已存在有效证书，将直接复用�?
+        LOGI "检测到域名 ${domain} 已存在有效证书，将直接复用。"
         [[ -n "${certInfo}" ]] && LOGI "${certInfo}"
     else
-        LOGI "域名准备就绪，即将开始申请证�?.."
+        LOGI "域名准备就绪，即将开始申请证书..."
     fi
 
     # create a directory for the certificate
@@ -2285,13 +2329,13 @@ ssl_cert_issue() {
     # get the port number for the standalone server
     local WebPort=80
     local input_port=""
-    read -rp "请选择用于验证的端�?(默认 80): " input_port
+    read -rp "请选择用于验证的端口 (默认 80): " input_port
     [[ -n "${input_port}" ]] && WebPort="${input_port}"
     if ! [[ "${WebPort}" =~ ^[0-9]+$ ]] || [[ ${WebPort} -gt 65535 || ${WebPort} -lt 1 ]]; then
-        LOGE "您输入的端口 ${WebPort} 无效，将使用默认端口 80�?
+        LOGE "您输入的端口 ${WebPort} 无效，将使用默认端口 80。"
         WebPort=80
     fi
-    LOGI "将使用端�?${WebPort} 申请证书，请确保该端口防火墙已放行�?
+    LOGI "将使用端口 ${WebPort} 申请证书，请确保该端口防火墙已放行。"
 
     # Environment states for restore on exit/failure
     local stopped_svcs=""
@@ -2311,7 +2355,7 @@ ssl_cert_issue() {
     stopped_svcs=$(stop_occupying_services "${WebPort}")
 
     if is_port_in_use "${WebPort}"; then
-        LOGW "警告: 检测到端口 ${WebPort} 仍被其他进程占用�?
+        LOGW "警告: 检测到端口 ${WebPort} 仍被其他进程占用！"
         if command -v ss >/dev/null 2>&1; then
             LOGW "占用详情: $(ss -lptn "sport = :${WebPort}" 2>/dev/null | tail -n +2 | tr '\n' ' ')"
         elif command -v lsof >/dev/null 2>&1; then
@@ -2334,14 +2378,14 @@ ssl_cert_issue() {
     if [[ ${cert_exists} -eq 0 ]]; then
         # Ask for email to register account
         local email="admin@${domain}"
-        read -rp "请输入用于注�?ACME 的邮�?(默认: admin@${domain}): " user_email
+        read -rp "请输入用于注册 ACME 的邮箱 (默认: admin@${domain}): " user_email
         email="${user_email:-$email}"
 
         # Check if the server has IPv6 interface
         local use_ipv6=""
         if ip -6 addr show | grep -q "inet6" | grep -qv "lo"; then
             use_ipv6="--listen-v6"
-            LOGI "检测到 IPv6 接口，开�?IPv6 独立监听..."
+            LOGI "检测到 IPv6 接口，开启 IPv6 独立监听..."
         fi
 
         # Issue the certificate - try Let's Encrypt first
@@ -2353,11 +2397,11 @@ ssl_cert_issue() {
         ~/.acme.sh/acme.sh --issue -d ${domain} ${use_ipv6} --standalone --httpport ${WebPort} --force
         
         if [ $? -eq 0 ]; then
-            LOGI "通过 Let's Encrypt 申请证书成功�?
+            LOGI "通过 Let's Encrypt 申请证书成功！"
             issue_status=0
         else
-            LOGE "通过 Let's Encrypt 申请证书失败�?
-            confirm "是否改用备用 CA (ZeroSSL) 进行申请�? "y"
+            LOGE "通过 Let's Encrypt 申请证书失败。"
+            confirm "是否改用备用 CA (ZeroSSL) 进行申请？" "y"
             if [ $? -eq 0 ]; then
                 LOGI "正在使用邮箱 ${email} 注册 ZeroSSL 账户..."
                 ~/.acme.sh/acme.sh --set-default-ca --server zerossl --force
@@ -2366,25 +2410,25 @@ ssl_cert_issue() {
                 LOGI "正在通过 ZeroSSL 申请证书..."
                 ~/.acme.sh/acme.sh --issue -d ${domain} ${use_ipv6} --standalone --httpport ${WebPort} --force
                 if [ $? -eq 0 ]; then
-                    LOGI "通过 ZeroSSL 申请证书成功�?
+                    LOGI "通过 ZeroSSL 申请证书成功！"
                     issue_status=0
                 else
-                    LOGE "通过 ZeroSSL 申请证书同样失败�?
+                    LOGE "通过 ZeroSSL 申请证书同样失败。"
                 fi
             fi
         fi
 
         if [[ ${issue_status} -ne 0 ]]; then
-            LOGE "所有证书申请尝试均已失败，请检查上方日志�?
+            LOGE "所有证书申请尝试均已失败，请检查上方日志。"
             rm -rf ~/.acme.sh/${domain}
             restore_env
             trap - INT TERM EXIT
             exit 1
         else
-            LOGI "证书申请成功，正在安装证书文�?.."
+            LOGI "证书申请成功，正在安装证书文件..."
         fi
     else
-        LOGI "使用已有证书，正在安装证书文�?.."
+        LOGI "使用已有证书，正在安装证书文件..."
         issue_status=0
     fi
 
@@ -2394,12 +2438,12 @@ ssl_cert_issue() {
 
     reloadCmd="x-ui restart"
 
-    LOGI "ACME 默认重载命令�? ${yellow}x-ui restart"
-    LOGI "该命令将在每次证书申请或自动续签成功后执行�?
+    LOGI "ACME 默认重载命令为: ${yellow}x-ui restart"
+    LOGI "该命令将在每次证书申请或自动续签成功后执行。"
     read -rp "是否需要自定义修改 ACME 的重载命令？(y/n): " setReloadcmd
     if [[ "$setReloadcmd" == "y" || "$setReloadcmd" == "Y" ]]; then
-        echo -e "\n${green}\t1.${plain} 预设: systemctl reload nginx ; x-ui restart (适用�?Nginx 反代)"
-        echo -e "${green}\t2.${plain} 自定义输入命�?
+        echo -e "\n${green}\t1.${plain} 预设: systemctl reload nginx ; x-ui restart (适用于 Nginx 反代)"
+        echo -e "${green}\t2.${plain} 自定义输入命令"
         echo -e "${green}\t0.${plain} 保持默认重载命令"
         read -rp "Choose an option: " choice
         case "$choice" in
@@ -2432,9 +2476,9 @@ ssl_cert_issue() {
     fi
 
     if [[ -f "/root/cert/${domain}/privkey.pem" && -f "/root/cert/${domain}/fullchain.pem" && (${installRc} -eq 0 || ${installWroteFiles} -eq 1) ]]; then
-        LOGI "证书安装成功，正在开启自动续�?.."
+        LOGI "证书安装成功，正在开启自动续签..."
     else
-        LOGE "证书安装失败，操作退出�?
+        LOGE "证书安装失败，操作退出。"
         if [[ ${cert_exists} -eq 0 ]]; then
             rm -rf ~/.acme.sh/${domain}
         fi
@@ -2470,10 +2514,10 @@ ssl_cert_issue() {
             echo -e "${green}访问链接: https://${domain}:${existing_port}${existing_webBasePath}${plain}"
             restart
         else
-            LOGE "错误: 未找到域�?$domain 的证书或私钥文件�?
+            LOGE "错误: 未找到域名 $domain 的证书或私钥文件。"
         fi
     else
-        LOGI "跳过为面板配置证书路径�?
+        LOGI "跳过为面板配置证书路径。"
     fi
 }
 
@@ -2481,51 +2525,51 @@ ssl_cert_issue_CF() {
     local existing_webBasePath=$(${xui_folder}/x-ui setting -show true | grep -Eo 'webBasePath: .+' | awk '{print $2}')
     local existing_port=$(${xui_folder}/x-ui setting -show true | grep -Eo 'port: .+' | awk '{print $2}')
     LOGI "****** 使用说明 ******"
-    LOGI "请按照以下步骤完成申请流�?"
-    LOGI "1. 准备 Cloudflare API Token (推荐，权限设�?Zone:DNS:Edit) �?Global API Key + 注册邮箱�?
-    LOGI "2. 准备需申请证书的域名�?
-    LOGI "3. 证书签发完成后，可选择是否直接配置给当前面板�?
-    LOGI "4. 脚本会在安装后自动配置证书到期自动续签�?
+    LOGI "请按照以下步骤完成申请流程:"
+    LOGI "1. 准备 Cloudflare API Token (推荐，权限设为 Zone:DNS:Edit) 或 Global API Key + 注册邮箱。"
+    LOGI "2. 准备需申请证书的域名。"
+    LOGI "3. 证书签发完成后，可选择是否直接配置给当前面板。"
+    LOGI "4. 脚本会在安装后自动配置证书到期自动续签。"
 
     confirm "您是否已确认以上信息并继续操作？[y/n]" "y"
 
     if [ $? -eq 0 ]; then
         # Check for acme.sh first
         if ! command -v ~/.acme.sh/acme.sh &> /dev/null; then
-            echo "未找�?acme.sh，即将开始安装�?
+            echo "未找到 acme.sh，即将开始安装。"
             install_acme
             if [ $? -ne 0 ]; then
-                LOGE "安装 acme.sh 失败，请查看日志�?
+                LOGE "安装 acme.sh 失败，请查看日志。"
                 exit 1
             fi
         fi
 
         CF_Domain=""
 
-        LOGD "请输入域�?"
-        read -rp "请输入域�? " CF_Domain
+        LOGD "请输入域名:"
+        read -rp "请输入域名: " CF_Domain
         LOGD "设定的域名为: ${CF_Domain}"
 
         # Cloudflare API credentials: an API Token (recommended, scoped to a
         # single zone) or the account-wide Global API Key. acme.sh reads
         # CF_Token for tokens, or CF_Key + CF_Email for the Global Key.
         CF_KeyType=""
-        read -rp "您使用的�?Cloudflare API Token 还是 Global API Key�?t/g) [默认 t]: " CF_KeyType
+        read -rp "您使用的是 Cloudflare API Token 还是 Global API Key？(t/g) [默认 t]: " CF_KeyType
         CF_KeyType=${CF_KeyType:-t}
 
         if [[ "$CF_KeyType" == "g" || "$CF_KeyType" == "G" ]]; then
             CF_GlobalKey=""
             CF_AccountEmail=""
-            LOGD "请输�?Global API Key:"
-            read -rp "请输�?Key: " CF_GlobalKey
-            LOGD "请输�?Cloudflare 注册邮箱:"
-            read -rp "请输入邮�? " CF_AccountEmail
+            LOGD "请输入 Global API Key:"
+            read -rp "请输入 Key: " CF_GlobalKey
+            LOGD "请输入 Cloudflare 注册邮箱:"
+            read -rp "请输入邮箱: " CF_AccountEmail
             export CF_Key="${CF_GlobalKey}"
             export CF_Email="${CF_AccountEmail}"
         else
             CF_ApiToken=""
-            LOGD "请输�?API Token:"
-            read -rp "请输�?Token: " CF_ApiToken
+            LOGD "请输入 API Token:"
+            read -rp "请输入 Token: " CF_ApiToken
             export CF_Token="${CF_ApiToken}"
         fi
 
@@ -2538,7 +2582,7 @@ ssl_cert_issue_CF() {
 
         # Register CA account
         local email="admin@${CF_Domain}"
-        read -rp "请输入用于注�?ACME 的邮�?(默认: admin@${CF_Domain}): " user_email
+        read -rp "请输入用于注册 ACME 的邮箱 (默认: admin@${CF_Domain}): " user_email
         email="${user_email:-$email}"
         LOGI "正在使用邮箱 ${email} 注册 Let's Encrypt 账户..."
         ~/.acme.sh/acme.sh --register-account -m "${email}" --server letsencrypt
@@ -2549,8 +2593,8 @@ ssl_cert_issue_CF() {
         if [ $? -eq 0 ]; then
             issue_status=0
         else
-            LOGE "通过 Let's Encrypt 申请证书失败�?
-            confirm "是否改用备用 CA (ZeroSSL) 进行申请�? "y"
+            LOGE "通过 Let's Encrypt 申请证书失败。"
+            confirm "是否改用备用 CA (ZeroSSL) 进行申请？" "y"
             if [ $? -eq 0 ]; then
                 ~/.acme.sh/acme.sh --set-default-ca --server zerossl --force
                 LOGI "正在使用邮箱 ${email} 注册 ZeroSSL 账户..."
@@ -2563,10 +2607,10 @@ ssl_cert_issue_CF() {
         fi
 
         if [ ${issue_status} -ne 0 ]; then
-            LOGE "证书申请失败，脚本退�?.."
+            LOGE "证书申请失败，脚本退出..."
             exit 1
         else
-            LOGI "证书申请成功，正在安�?.."
+            LOGI "证书申请成功，正在安装..."
         fi
 
         # Install the certificate
@@ -2583,12 +2627,12 @@ ssl_cert_issue_CF() {
 
         reloadCmd="x-ui restart"
 
-        LOGI "ACME 默认重载命令�? ${yellow}x-ui restart"
-        LOGI "该命令将在每次证书申请或自动续签成功后执行�?
+        LOGI "ACME 默认重载命令为: ${yellow}x-ui restart"
+        LOGI "该命令将在每次证书申请或自动续签成功后执行。"
         read -rp "是否需要自定义修改 ACME 的重载命令？(y/n): " setReloadcmd
         if [[ "$setReloadcmd" == "y" || "$setReloadcmd" == "Y" ]]; then
-            echo -e "\n${green}\t1.${plain} 预设: systemctl reload nginx ; x-ui restart (适用�?Nginx 反代)"
-            echo -e "${green}\t2.${plain} 自定义输入命�?
+            echo -e "\n${green}\t1.${plain} 预设: systemctl reload nginx ; x-ui restart (适用于 Nginx 反代)"
+            echo -e "${green}\t2.${plain} 自定义输入命令"
             echo -e "${green}\t0.${plain} 保持默认重载命令"
             read -rp "Choose an option: " choice
             case "$choice" in
@@ -2611,16 +2655,16 @@ ssl_cert_issue_CF() {
             --fullchain-file ${certPath}/fullchain.pem --reloadcmd "${reloadCmd}"
 
         if [ $? -ne 0 ]; then
-            LOGE "证书安装失败，脚本退�?.."
+            LOGE "证书安装失败，脚本退出..."
             exit 1
         else
-            LOGI "证书安装成功，正在开启自动续签更�?.."
+            LOGI "证书安装成功，正在开启自动续签更新..."
         fi
 
         # Enable auto-update
         ~/.acme.sh/acme.sh --upgrade --auto-upgrade
         if [ $? -ne 0 ]; then
-            LOGE "开启自动续签失败，脚本退�?.."
+            LOGE "开启自动续签失败，脚本退出..."
             exit 1
         else
             LOGI "证书已安装且已启用自动续签，详细信息如下:"
@@ -2643,10 +2687,10 @@ ssl_cert_issue_CF() {
                 echo -e "${green}访问链接: https://${CF_Domain}:${existing_port}${existing_webBasePath}${plain}"
                 restart
             else
-                LOGE "错误: 未找到域�?$CF_Domain 的证书或私钥文件�?
+                LOGE "错误: 未找到域名 $CF_Domain 的证书或私钥文件。"
             fi
         else
-            LOGI "跳过为面板配置证书路径�?
+            LOGI "跳过为面板配置证书路径。"
         fi
     else
         show_menu
@@ -2681,7 +2725,7 @@ run_speedtest() {
             fi
 
             if [[ -z $pkg_manager ]]; then
-                echo "错误: 未找到支持的包管理器，您可能需要手动安�?Speedtest�?
+                echo "错误: 未找到支持的包管理器，您可能需要手动安装 Speedtest。"
                 return 1
             else
                 echo "正在通过 $pkg_manager 安装 Speedtest..."
@@ -2700,24 +2744,24 @@ ip_validation() {
 }
 
 iplimit_main() {
-    echo -e "\n${green}\t1.${plain} 安装 Fail2ban 并配�?IP 限制"
+    echo -e "\n${green}\t1.${plain} 安装 Fail2ban 并配置 IP 限制"
     echo -e "${green}\t2.${plain} 修改封禁时长"
-    echo -e "${green}\t3.${plain} 解封所有用�?
+    echo -e "${green}\t3.${plain} 解封所有用户"
     echo -e "${green}\t4.${plain} 查看封禁日志"
     echo -e "${green}\t5.${plain} Ban an IP Address"
     echo -e "${green}\t6.${plain} Unban an IP Address"
     echo -e "${green}\t7.${plain} 实时监控日志"
-    echo -e "${green}\t8.${plain} Fail2ban 服务状�?
+    echo -e "${green}\t8.${plain} Fail2ban 服务状态"
     echo -e "${green}\t9.${plain} 重启 Fail2ban 服务"
-    echo -e "${green}\t10.${plain} 卸载 Fail2ban �?IP 限制"
-    echo -e "${green}\t0.${plain} 返回主菜�?
+    echo -e "${green}\t10.${plain} 卸载 Fail2ban 与 IP 限制"
+    echo -e "${green}\t0.${plain} 返回主菜单"
     read -rp "Choose an option: " choice
     case "$choice" in
         0)
             show_menu
             ;;
         1)
-            confirm "确认安装 Fail2ban 并配�?IP 限制�? "y"
+            confirm "确认安装 Fail2ban 并配置 IP 限制？" "y"
             if [[ $? == 0 ]]; then
                 install_iplimit
             else
@@ -2725,7 +2769,7 @@ iplimit_main() {
             fi
             ;;
         2)
-            read -rp "请输入新的封禁时�?(分钟) [默认 30]: " NUM
+            read -rp "请输入新的封禁时长 (分钟) [默认 30]: " NUM
             if [[ $NUM =~ ^[0-9]+$ ]]; then
                 create_iplimit_jails ${NUM}
                 if [[ $release == "alpine" ]]; then
@@ -2734,16 +2778,16 @@ iplimit_main() {
                     systemctl restart fail2ban
                 fi
             else
-                echo -e "${red}${NUM} 不是有效数字！请重新输入�?{plain}"
+                echo -e "${red}${NUM} 不是有效数字！请重新输入。${plain}"
             fi
             iplimit_main
             ;;
         3)
-            confirm "确认�?IP Limit 规则中解封所�?IP�? "y"
+            confirm "确认从 IP Limit 规则中解封所有 IP？" "y"
             if [[ $? == 0 ]]; then
                 fail2ban-client reload --restart --unban 3x-ipl
                 truncate -s 0 "${iplimit_banned_log_path}"
-                echo -e "${green}所有用�?IP 已成功解封�?{plain}"
+                echo -e "${green}所有用户 IP 已成功解封。${plain}"
                 iplimit_main
             else
                 echo -e "${yellow}Cancelled.${plain}"
@@ -2755,24 +2799,24 @@ iplimit_main() {
             iplimit_main
             ;;
         5)
-            read -rp "请输入要手动封禁�?IP 地址: " ban_ip
+            read -rp "请输入要手动封禁的 IP 地址: " ban_ip
             ip_validation
             if [[ $ban_ip =~ $ipv4_regex || $ban_ip =~ $ipv6_regex ]]; then
                 fail2ban-client set 3x-ipl banip "$ban_ip"
-                echo -e "${green}IP 地址 ${ban_ip} 已成功封禁�?{plain}"
+                echo -e "${green}IP 地址 ${ban_ip} 已成功封禁。${plain}"
             else
-                echo -e "${red}IP 地址格式无效！请重新输入�?{plain}"
+                echo -e "${red}IP 地址格式无效！请重新输入。${plain}"
             fi
             iplimit_main
             ;;
         6)
-            read -rp "请输入要解封�?IP 地址: " unban_ip
+            read -rp "请输入要解封的 IP 地址: " unban_ip
             ip_validation
             if [[ $unban_ip =~ $ipv4_regex || $unban_ip =~ $ipv6_regex ]]; then
                 fail2ban-client set 3x-ipl unbanip "$unban_ip"
-                echo -e "${green}IP 地址 ${unban_ip} 已成功解封�?{plain}"
+                echo -e "${green}IP 地址 ${unban_ip} 已成功解封。${plain}"
             else
-                echo -e "${red}IP 地址格式无效！请重新输入�?{plain}"
+                echo -e "${red}IP 地址格式无效！请重新输入。${plain}"
             fi
             iplimit_main
             ;;
@@ -2797,7 +2841,7 @@ iplimit_main() {
             iplimit_main
             ;;
         *)
-            echo -e "${red}无效选项，请输入有效序号�?{plain}\n"
+            echo -e "${red}无效选项，请输入有效序号。${plain}\n"
             iplimit_main
             ;;
     esac
@@ -2805,7 +2849,7 @@ iplimit_main() {
 
 install_iplimit() {
     if ! command -v fail2ban-client &> /dev/null; then
-        echo -e "${green}检测到 Fail2ban 未安装，正在开始安�?..!${plain}\n"
+        echo -e "${green}检测到 Fail2ban 未安装，正在开始安装...!${plain}\n"
 
         # Install fail2ban together with nftables. Recent fail2ban packages
         # default to `banaction = nftables-multiport` in /etc/fail2ban/jail.conf,
@@ -2852,19 +2896,19 @@ install_iplimit() {
                 apk add fail2ban nftables
                 ;;
             *)
-                echo -e "${red}不支持的操作系统，请手动安装必要软件包�?{plain}\n"
+                echo -e "${red}不支持的操作系统，请手动安装必要软件包。${plain}\n"
                 exit 1
                 ;;
         esac
 
         if ! command -v fail2ban-client &> /dev/null; then
-            echo -e "${red}Fail2ban 安装失败�?{plain}\n"
+            echo -e "${red}Fail2ban 安装失败。${plain}\n"
             exit 1
         fi
 
-        echo -e "${green}Fail2ban 安装成功�?{plain}\n"
+        echo -e "${green}Fail2ban 安装成功！${plain}\n"
     else
-        echo -e "${yellow}Fail2ban 已经安装�?{plain}\n"
+        echo -e "${yellow}Fail2ban 已经安装。${plain}\n"
     fi
 
     echo -e "${green}Configuring IP Limit...${plain}\n"
@@ -2903,14 +2947,14 @@ install_iplimit() {
         systemctl enable fail2ban
     fi
 
-    echo -e "${green}IP 限制功能已成功安装并配置完成�?{plain}\n"
+    echo -e "${green}IP 限制功能已成功安装并配置完成！${plain}\n"
     before_show_menu
 }
 
 remove_iplimit() {
-    echo -e "${green}\t1.${plain} 仅移�?IP Limit 限制规则"
-    echo -e "${green}\t2.${plain} 彻底卸载 Fail2ban �?IP 限制"
-    echo -e "${green}\t0.${plain} 返回主菜�?
+    echo -e "${green}\t1.${plain} 仅移除 IP Limit 限制规则"
+    echo -e "${green}\t2.${plain} 彻底卸载 Fail2ban 与 IP 限制"
+    echo -e "${green}\t0.${plain} 返回主菜单"
     read -rp "Choose an option: " num
     case "$num" in
         1)
@@ -2958,18 +3002,18 @@ remove_iplimit() {
                     apk del fail2ban
                     ;;
                 *)
-                    echo -e "${red}不支持的操作系统，请手动卸载 Fail2ban�?{plain}\n"
+                    echo -e "${red}不支持的操作系统，请手动卸载 Fail2ban。${plain}\n"
                     exit 1
                     ;;
             esac
-            echo -e "${green}Fail2ban �?IP 限制已成功卸载！${plain}\n"
+            echo -e "${green}Fail2ban 与 IP 限制已成功卸载！${plain}\n"
             before_show_menu
             ;;
         0)
             show_menu
             ;;
         *)
-            echo -e "${red}无效选项，请输入有效序号�?{plain}\n"
+            echo -e "${red}无效选项，请输入有效序号。${plain}\n"
             remove_iplimit
             ;;
     esac
@@ -2978,22 +3022,22 @@ remove_iplimit() {
 show_banlog() {
     local system_log="/var/log/fail2ban.log"
 
-    echo -e "${green}正在检查封禁日�?..${plain}\n"
+    echo -e "${green}正在检查封禁日志...${plain}\n"
 
     if [[ $release == "alpine" ]]; then
         if [[ $(rc-service fail2ban status | grep -F 'status: started' -c) == 0 ]]; then
-            echo -e "${red}Fail2ban 服务未在运行�?{plain}\n"
+            echo -e "${red}Fail2ban 服务未在运行！${plain}\n"
             return 1
         fi
     else
         if ! systemctl is-active --quiet fail2ban; then
-            echo -e "${red}Fail2ban 服务未在运行�?{plain}\n"
+            echo -e "${red}Fail2ban 服务未在运行！${plain}\n"
             return 1
         fi
     fi
 
     if [[ -f "$system_log" ]]; then
-        echo -e "${green}fail2ban.log 中的最近封禁记�?${plain}"
+        echo -e "${green}fail2ban.log 中的最近封禁记录:${plain}"
         grep "3x-ipl" "$system_log" | grep -E "Ban|Unban" | tail -n 10 || echo -e "${yellow}No recent system ban activities found${plain}"
         echo ""
     fi
@@ -3006,10 +3050,10 @@ show_banlog() {
             echo -e "${yellow}封禁日志文件为空${plain}"
         fi
     else
-        echo -e "${red}未找到封禁日志文�? ${iplimit_banned_log_path}${plain}"
+        echo -e "${red}未找到封禁日志文件: ${iplimit_banned_log_path}${plain}"
     fi
 
-    echo -e "\n${green}当前 Jail 规则状�?${plain}"
+    echo -e "\n${green}当前 Jail 规则状态:${plain}"
     fail2ban-client status 3x-ipl || echo -e "${yellow}Unable to get jail status${plain}"
 }
 
@@ -3071,7 +3115,7 @@ protocol = tcp
 chain = INPUT
 EOF
 
-    echo -e "${green}IP Limit jail 规则已创建，封禁时长�?${bantime} 分钟�?{plain}"
+    echo -e "${green}IP Limit jail 规则已创建，封禁时长为 ${bantime} 分钟。${plain}"
 }
 
 iplimit_remove_conflicts() {
@@ -3110,12 +3154,12 @@ SSH_port_forwarding() {
     done
 
     if [[ -z "$server_ip" ]]; then
-        echo -e "${yellow}无法从任何接口服务自动检测到服务�?IP�?{plain}"
+        echo -e "${yellow}无法从任何接口服务自动检测到服务器 IP。${plain}"
         while [[ -z "$server_ip" ]]; do
             read -rp "请输入您服务器的公网 IPv4 地址: " server_ip
             server_ip="${server_ip// /}"
             if [[ ! "$server_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                echo -e "${red}无效�?IPv4 地址，请重新输入�?{plain}"
+                echo -e "${red}无效的 IPv4 地址，请重新输入。${plain}"
                 server_ip=""
             fi
         done
@@ -3131,19 +3175,19 @@ SSH_port_forwarding() {
     local listen_choice=""
 
     if [[ -n "$existing_cert" && -n "$existing_key" ]]; then
-        echo -e "${green}面板已启�?SSL 安全加密�?{plain}"
+        echo -e "${green}面板已启用 SSL 安全加密。${plain}"
         before_show_menu
     fi
     if [[ -z "$existing_cert" && -z "$existing_key" && (-z "$existing_listenIP" || "$existing_listenIP" == "0.0.0.0") ]]; then
-        echo -e "\n${red}警告: 未找到证书与私钥！面板未受安全保护�?{plain}"
-        echo "建议申请证书或配�?SSH 端口转发以安全访问�?
+        echo -e "\n${red}警告: 未找到证书与私钥！面板未受安全保护。${plain}"
+        echo "建议申请证书或配置 SSH 端口转发以安全访问。"
     fi
 
     if [[ -n "$existing_listenIP" && "$existing_listenIP" != "0.0.0.0" && (-z "$existing_cert" && -z "$existing_key") ]]; then
         echo -e "\n${green}当前 SSH 端口转发配置:${plain}"
         echo -e "标准 SSH 转发命令:"
         echo -e "${yellow}ssh -L 2222:${existing_listenIP}:${existing_port} root@${server_ip}${plain}"
-        echo -e "\n若使�?SSH 密钥:"
+        echo -e "\n若使用 SSH 密钥:"
         echo -e "${yellow}ssh -i <sshkeypath> -L 2222:${existing_listenIP}:${existing_port} root@${server_ip}${plain}"
         echo -e "\n连接建立后，通过以下地址访问面板:"
         echo -e "${yellow}http://localhost:2222${existing_webBasePath}${plain}"
@@ -3152,13 +3196,13 @@ SSH_port_forwarding() {
     echo -e "\n请选择操作:"
     echo -e "${green}1.${plain} 设置监听 IP"
     echo -e "${green}2.${plain} 清除监听 IP"
-    echo -e "${green}0.${plain} 返回主菜�?
+    echo -e "${green}0.${plain} 返回主菜单"
     read -rp "请输入选项: " num
 
     case "$num" in
         1)
             if [[ -z "$existing_listenIP" || "$existing_listenIP" == "0.0.0.0" ]]; then
-                echo -e "\n当前未配置监�?IP (listenIP)。请选择:"
+                echo -e "\n当前未配置监听 IP (listenIP)。请选择:"
                 echo -e "1. 使用默认本地回环 IP (127.0.0.1)"
                 echo -e "2. Set a custom IP"
                 read -rp "Select an option (1 or 2): " listen_choice
@@ -3167,30 +3211,30 @@ SSH_port_forwarding() {
                 [[ "$listen_choice" == "2" ]] && read -rp "Enter custom IP to listen on: " config_listenIP
 
                 ${xui_folder}/x-ui setting -listenIP "${config_listenIP}" > /dev/null 2>&1
-                echo -e "${green}监听 IP 已设置为 ${config_listenIP}�?{plain}"
+                echo -e "${green}监听 IP 已设置为 ${config_listenIP}。${plain}"
                 echo -e "\n${green}SSH 端口转发配置:${plain}"
                 echo -e "标准 SSH 转发命令:"
                 echo -e "${yellow}ssh -L 2222:${config_listenIP}:${existing_port} root@${server_ip}${plain}"
-                echo -e "\n若使�?SSH 密钥:"
+                echo -e "\n若使用 SSH 密钥:"
                 echo -e "${yellow}ssh -i <sshkeypath> -L 2222:${config_listenIP}:${existing_port} root@${server_ip}${plain}"
                 echo -e "\n连接建立后，通过以下地址访问面板:"
                 echo -e "${yellow}http://localhost:2222${existing_webBasePath}${plain}"
                 restart
             else
                 config_listenIP="${existing_listenIP}"
-                echo -e "${green}当前监听 IP 已设置为 ${config_listenIP}�?{plain}"
+                echo -e "${green}当前监听 IP 已设置为 ${config_listenIP}。${plain}"
             fi
             ;;
         2)
             ${xui_folder}/x-ui setting -listenIP 0.0.0.0 > /dev/null 2>&1
-            echo -e "${green}监听 IP 已成功清除�?{plain}"
+            echo -e "${green}监听 IP 已成功清除。${plain}"
             restart
             ;;
         0)
             show_menu
             ;;
         *)
-            echo -e "${red}无效选项，请输入有效序号�?{plain}\n"
+            echo -e "${red}无效选项，请输入有效序号。${plain}\n"
             SSH_port_forwarding
             ;;
     esac
@@ -3224,7 +3268,7 @@ pg_systemd_unit() {
 
 postgresql_status() {
     if ! postgresql_installed; then
-        LOGE "当前系统中未检测到已安装的 PostgreSQL�?
+        LOGE "当前系统中未检测到已安装的 PostgreSQL。"
         return 1
     fi
     if command -v pg_lsclusters > /dev/null 2>&1; then
@@ -3240,7 +3284,7 @@ postgresql_status() {
             echo -e "${green}PostgreSQL is listening on port 5432:${plain}"
             echo "$listening"
         else
-            echo -e "${red}5432 端口无服务监�?�?PostgreSQL 数据库未在运行�?{plain}"
+            echo -e "${red}5432 端口无服务监听 — PostgreSQL 数据库未在运行。${plain}"
         fi
     fi
 }
@@ -3263,7 +3307,7 @@ postgresql_stop() {
     else
         systemctl stop "$(pg_systemd_unit)"
     fi
-    LOGI "PostgreSQL 停止信号已发送�?
+    LOGI "PostgreSQL 停止信号已发送。"
 }
 
 postgresql_restart() {
@@ -3285,9 +3329,9 @@ postgresql_enable() {
         systemctl enable "$(pg_systemd_unit)"
     fi
     if [[ $? == 0 ]]; then
-        LOGI "已设�?PostgreSQL 开机自启�?
+        LOGI "已设置 PostgreSQL 开机自启。"
     else
-        LOGE "设置 PostgreSQL 开机自启失败�?
+        LOGE "设置 PostgreSQL 开机自启失败。"
     fi
 }
 
@@ -3305,13 +3349,13 @@ postgresql_log() {
     elif command -v journalctl > /dev/null 2>&1; then
         journalctl -u "$(pg_systemd_unit)" -n 40 --no-pager
     else
-        LOGE "未找�?PostgreSQL 日志文件�?
+        LOGE "未找到 PostgreSQL 日志文件。"
     fi
 }
 
 pg_require_installed() {
     if ! postgresql_installed; then
-        LOGE "PostgreSQL 未安装，请先在菜单中选择选项 1 (安装 PostgreSQL)�?
+        LOGE "PostgreSQL 未安装，请先在菜单中选择选项 1 (安装 PostgreSQL)。"
         return 1
     fi
 }
@@ -3412,7 +3456,7 @@ pg_ensure_client() {
     if command -v pg_dump > /dev/null 2>&1 && command -v pg_restore > /dev/null 2>&1; then
         return 0
     fi
-    echo -e "${yellow}正在安装 PostgreSQL 客户端工�?(pg_dump/pg_restore)...${plain}" >&2
+    echo -e "${yellow}正在安装 PostgreSQL 客户端工具 (pg_dump/pg_restore)...${plain}" >&2
     case "${release}" in
         ubuntu | debian | armbian)
             apt-get update >&2 && apt-get install -y -q postgresql-client >&2 || return 1
@@ -3459,59 +3503,59 @@ pg_write_env() {
 
 pg_install_server_action() {
     if postgresql_installed; then
-        LOGI "系统中已检测到安装�?PostgreSQL�?
-        confirm "是否仍然继续运行配置 (确保 xui 数据库与用户存在)�? "n" || return 0
+        LOGI "系统中已检测到安装有 PostgreSQL。"
+        confirm "是否仍然继续运行配置 (确保 xui 数据库与用户存在)？" "n" || return 0
     fi
-    LOGI "正在安装 PostgreSQL 服务并创建专属用户与数据�?.."
+    LOGI "正在安装 PostgreSQL 服务并创建专属用户与数据库..."
     local dsn
     dsn=$(pg_install_local)
     if [[ $? -ne 0 || -z "$dsn" ]]; then
-        LOGE "PostgreSQL 安装失败�?
+        LOGE "PostgreSQL 安装失败。"
         return 1
     fi
     PG_LAST_DSN="$dsn"
     pg_ensure_client || LOGE "Could not install pg_dump/pg_restore (panel DB backup may be unavailable)."
     echo ""
-    LOGI "PostgreSQL 已安装就绪�?
+    LOGI "PostgreSQL 已安装就绪。"
     echo -e "${green}连接 DSN:${plain} ${dsn}"
-    echo -e "${yellow}可使用选项 2 �?SQLite 数据迁移�?PostgreSQL 并切换面板�?{plain}"
+    echo -e "${yellow}可使用选项 2 将 SQLite 数据迁移至 PostgreSQL 并切换面板。${plain}"
 }
 
 # Copies the current SQLite data into PostgreSQL, then switches the panel over.
 migrate_to_postgres() {
     if [[ ! -x "${xui_folder}/x-ui" ]]; then
-        LOGE "x-ui 面板未安装�?
+        LOGE "x-ui 面板未安装。"
         return 1
     fi
     echo ""
-    echo -e "${yellow}此操作将当前�?SQLite 数据复制�?PostgreSQL 数据库中�?{plain}"
-    echo -e "${yellow}然后切换面板�?PostgreSQL 并自动重启�?{plain}"
-    echo -e "${yellow}目标 PostgreSQL 数据库必须为空�?{plain}"
+    echo -e "${yellow}此操作将当前的 SQLite 数据复制到 PostgreSQL 数据库中，${plain}"
+    echo -e "${yellow}然后切换面板至 PostgreSQL 并自动重启。${plain}"
+    echo -e "${yellow}目标 PostgreSQL 数据库必须为空。${plain}"
     confirm "Continue?" "n" || return 0
 
     local dsn="" pg_mode
     if [[ -n "$PG_LAST_DSN" ]]; then
-        echo -e "检测到当前会话中创建的 PostgreSQL 数据�?"
+        echo -e "检测到当前会话中创建的 PostgreSQL 数据库:"
         echo -e "  ${green}${PG_LAST_DSN}${plain}"
-        confirm "是否迁移数据至此数据库中�? "y" && dsn="$PG_LAST_DSN"
+        confirm "是否迁移数据至此数据库中？" "y" && dsn="$PG_LAST_DSN"
     fi
 
     if [[ -z "$dsn" ]]; then
         echo ""
-        echo -e "${green}\t1.${plain} 本地安装 PostgreSQL 并创建专属用�?�?(推荐)"
-        echo -e "${green}\t2.${plain} 使用现有�?PostgreSQL 服务 (输入 DSN)"
+        echo -e "${green}\t1.${plain} 本地安装 PostgreSQL 并创建专属用户/库 (推荐)"
+        echo -e "${green}\t2.${plain} 使用现有的 PostgreSQL 服务 (输入 DSN)"
         read -rp "Choose [1]: " pg_mode
         pg_mode="${pg_mode:-1}"
         if [[ "$pg_mode" == "2" ]]; then
             while [[ -z "$dsn" ]]; do
-                read -rp "请输�?PostgreSQL DSN 连接�?(postgres://user:pass@host:port/dbname?sslmode=disable): " dsn
+                read -rp "请输入 PostgreSQL DSN 连接串 (postgres://user:pass@host:port/dbname?sslmode=disable): " dsn
                 dsn="${dsn// /}"
             done
         else
             LOGI "正在本地安装 PostgreSQL (需要耗费少许时间)..."
             dsn=$(pg_install_local)
             if [[ $? -ne 0 || -z "$dsn" ]]; then
-                LOGE "PostgreSQL 安装失败，已中止迁移�?
+                LOGE "PostgreSQL 安装失败，已中止迁移。"
                 return 1
             fi
             PG_LAST_DSN="$dsn"
@@ -3520,39 +3564,39 @@ migrate_to_postgres() {
 
     pg_ensure_client || LOGE "Could not install pg_dump/pg_restore (in-panel DB backup/restore may be unavailable)."
 
-    LOGI "正在停止面板以获取一致性数据快�?.."
+    LOGI "正在停止面板以获取一致性数据快照..."
     stop 0 > /dev/null 2>&1
 
     echo ""
-    LOGI "正在迁移数据�?PostgreSQL..."
+    LOGI "正在迁移数据至 PostgreSQL..."
     if ! ${xui_folder}/x-ui migrate-db --dsn "$dsn"; then
-        LOGE "迁移失败！面板未切换�?PostgreSQL�?
+        LOGE "迁移失败！面板未切换至 PostgreSQL。"
         start 0 > /dev/null 2>&1
         return 1
     fi
 
     pg_write_env "$dsn"
-    LOGI "已将数据库配置写�?$(xui_env_file_path) (XUI_DB_TYPE=postgres)�?
+    LOGI "已将数据库配置写入 $(xui_env_file_path) (XUI_DB_TYPE=postgres)。"
     LOGI "正在使用 PostgreSQL 重启面板..."
     restart 0
     sleep 1
     if check_status; then
-        LOGI "数据迁移完成！当前面板现已运行在 PostgreSQL 上�?
+        LOGI "数据迁移完成！当前面板现已运行在 PostgreSQL 上。"
     else
-        LOGE "面板未能正常启动。请通过选项 16 查看日志确认原因。您的原 SQLite 数据完好无损�?
+        LOGE "面板未能正常启动。请通过选项 16 查看日志确认原因。您的原 SQLite 数据完好无损。"
     fi
 }
 
 postgresql_menu() {
-    echo -e "${green}\t1.${plain} ${green}安装${plain} PostgreSQL (服务�?+ 客户�?+ xui 数据�?"
+    echo -e "${green}\t1.${plain} ${green}安装${plain} PostgreSQL (服务端 + 客户端 + xui 数据库)"
     echo -e "${green}\t2.${plain} 迁移 SQLite ${green}->${plain} PostgreSQL"
-    echo -e "${green}\t3.${plain} 查看状�?(集群�?5432 端口)"
+    echo -e "${green}\t3.${plain} 查看状态 (集群及 5432 端口)"
     echo -e "${green}\t4.${plain} ${green}启动${plain} PostgreSQL"
     echo -e "${green}\t5.${plain} ${red}停止${plain} PostgreSQL"
     echo -e "${green}\t6.${plain} 重启 PostgreSQL"
-    echo -e "${green}\t7.${plain} ${green}启用${plain} 开机自�?
+    echo -e "${green}\t7.${plain} ${green}启用${plain} 开机自启"
     echo -e "${green}\t8.${plain} 查看 PostgreSQL 日志"
-    echo -e "${green}\t0.${plain} 返回主菜�?
+    echo -e "${green}\t0.${plain} 返回主菜单"
     read -rp "请选择一个选项: " choice
     case "$choice" in
         0)
@@ -3591,19 +3635,77 @@ postgresql_menu() {
             postgresql_menu
             ;;
         *)
-            echo -e "${red}无效选项，请输入有效序号�?{plain}\n"
+            echo -e "${red}无效选项，请输入有效序号。${plain}\n"
             postgresql_menu
             ;;
     esac
 }
 
 show_usage() {
-    echo -e "┌────────────────────────────────────────────────────────────────�?�? ${blue}x-ui 控制菜单使用方法 (命令行子命令):${plain}                 �?�?                                                               �?�? ${blue}x-ui${plain}                       - 显示管理菜单 (管理脚本)          �?�? ${blue}x-ui start${plain}                 - 启动 x-ui 面板                   �?�? ${blue}x-ui stop${plain}                  - 停止 x-ui 面板                   �?�? ${blue}x-ui restart${plain}               - 重启 x-ui 面板                   �?�? ${blue}x-ui restart-xray${plain}          - 重启 Xray 内核                   �?�? ${blue}x-ui status${plain}                - 查看当前状�?                    �?�? ${blue}x-ui settings${plain}              - 查看当前设置                     �?�? ${blue}x-ui enable${plain}                - 启用面板开机自�?                �?�? ${blue}x-ui disable${plain}               - 禁用面板开机自�?                �?�? ${blue}x-ui log${plain}                   - 查看面板运行日志                 �?�? ${blue}x-ui banlog${plain}                - 查看 Fail2ban 封禁日志           �?�? ${blue}x-ui update${plain}                - 更新 x-ui 面板                   �?�? ${blue}x-ui update-all-geofiles${plain}   - 更新所�?Geo 资源文件            �?�? ${blue}x-ui bbr${plain}                  - BBR 网络加速与内核管理            �?�? ${blue}x-ui legacy${plain}                - 切换历史版本                     �?�? ${blue}x-ui install${plain}               - 安装 x-ui 面板                   �?�? ${blue}x-ui uninstall${plain}             - 卸载 x-ui 面板                   �?└────────────────────────────────────────────────────────────────�?
+    echo -e "┌────────────────────────────────────────────────────────────────┐
+│  ${blue}x-ui 控制菜单使用方法 (命令行子命令):${plain}                 │
+│                                                                │
+│  ${blue}x-ui${plain}                       - 显示管理菜单 (管理脚本)          │
+│  ${blue}x-ui start${plain}                 - 启动 x-ui 面板                   │
+│  ${blue}x-ui stop${plain}                  - 停止 x-ui 面板                   │
+│  ${blue}x-ui restart${plain}               - 重启 x-ui 面板                   │
+│  ${blue}x-ui restart-xray${plain}          - 重启 Xray 内核                   │
+│  ${blue}x-ui status${plain}                - 查看当前状态                     │
+│  ${blue}x-ui settings${plain}              - 查看当前设置                     │
+│  ${blue}x-ui enable${plain}                - 启用面板开机自启                 │
+│  ${blue}x-ui disable${plain}               - 禁用面板开机自启                 │
+│  ${blue}x-ui log${plain}                   - 查看面板运行日志                 │
+│  ${blue}x-ui banlog${plain}                - 查看 Fail2ban 封禁日志           │
+│  ${blue}x-ui update${plain}                - 更新 x-ui 面板                   │
+│  ${blue}x-ui update-all-geofiles${plain}   - 更新所有 Geo 资源文件            │
+│  ${blue}x-ui bbr${plain}                  - BBR 网络加速与内核管理            │
+│  ${blue}x-ui legacy${plain}                - 切换历史版本                     │
+│  ${blue}x-ui install${plain}               - 安装 x-ui 面板                   │
+│  ${blue}x-ui uninstall${plain}             - 卸载 x-ui 面板                   │
+└────────────────────────────────────────────────────────────────┘"
 }
 
 show_menu() {
     echo -e "
-╔────────────────────────────────────────────────�?�?  ${green}3X-UI 面板管理脚本 (已优化版)${plain}                 �?�?  ${green}0.${plain} 退出脚�?                                  �?│────────────────────────────────────────────────�?�?  ${green}1.${plain} 安装面板                                   �?�?  ${green}2.${plain} 更新面板                                   �?�?  ${green}3.${plain} 更新脚本菜单                               �?�?  ${green}4.${plain} 切换历史版本                               �?�?  ${green}5.${plain} 卸载面板                                   �?│────────────────────────────────────────────────�?�?  ${green}6.${plain} 重置用户名和密码                           �?�?  ${green}7.${plain} 重置网页根路�?(webBasePath)               �?�?  ${green}8.${plain} 重置面板所有设�?                          �?�?  ${green}9.${plain} 修改面板监听端口                           �?�? ${green}10.${plain} 查看当前面板配置                           �?│────────────────────────────────────────────────�?�? ${green}11.${plain} 启动面板                                   �?�? ${green}12.${plain} 停止面板                                   �?�? ${green}13.${plain} 重启面板                                   �?�? ${green}14.${plain} 重启 Xray 内核                              �?�? ${green}15.${plain} 查看面板当前状�?                          �?�? ${green}16.${plain} 日志及调试管�?                            �?│────────────────────────────────────────────────�?�? ${green}17.${plain} 启用开机自�?                              �?�? ${green}18.${plain} 禁用开机自�?                              �?│────────────────────────────────────────────────�?�? ${green}19.${plain} SSL 证书管理 (DNS/HTTP 独立申请)           �?�? ${green}20.${plain} Cloudflare SSL 证书 (DNS API 申请)         �?�? ${green}21.${plain} 面板 IP 限制管理                           �?�? ${green}22.${plain} 系统防火墙端口管�?                        �?�? ${green}23.${plain} SSH 端口转发管理                           �?│────────────────────────────────────────────────�?�? ${green}24.${plain} BBR 网络加速与内核管理                      �?�? ${green}25.${plain} 手动更新 Geo 数据文件                      �?�? ${green}26.${plain} 进行 Ookla 速度测试                        �?│────────────────────────────────────────────────�?�? ${green}27.${plain} PostgreSQL 数据库管�?                    �?╚────────────────────────────────────────────────�?"
+╔────────────────────────────────────────────────╗
+│   ${green}3X-UI 面板管理脚本 (已优化版)${plain}                 │
+│   ${green}0.${plain} 退出脚本                                   │
+│────────────────────────────────────────────────│
+│   ${green}1.${plain} 安装面板                                   │
+│   ${green}2.${plain} 更新面板                                   │
+│   ${green}3.${plain} 更新脚本菜单                               │
+│   ${green}4.${plain} 切换历史版本                               │
+│   ${green}5.${plain} 卸载面板                                   │
+│────────────────────────────────────────────────│
+│   ${green}6.${plain} 重置用户名和密码                           │
+│   ${green}7.${plain} 重置网页根路径 (webBasePath)               │
+│   ${green}8.${plain} 重置面板所有设置                           │
+│   ${green}9.${plain} 修改面板监听端口                           │
+│  ${green}10.${plain} 查看当前面板配置                           │
+│────────────────────────────────────────────────│
+│  ${green}11.${plain} 启动面板                                   │
+│  ${green}12.${plain} 停止面板                                   │
+│  ${green}13.${plain} 重启面板                                   │
+│  ${green}14.${plain} 重启 Xray 内核                              │
+│  ${green}15.${plain} 查看面板当前状态                           │
+│  ${green}16.${plain} 日志及调试管理                             │
+│────────────────────────────────────────────────│
+│  ${green}17.${plain} 启用开机自启                               │
+│  ${green}18.${plain} 禁用开机自启                               │
+│────────────────────────────────────────────────│
+│  ${green}19.${plain} SSL 证书管理 (DNS/HTTP 独立申请)           │
+│  ${green}20.${plain} Cloudflare SSL 证书 (DNS API 申请)         │
+│  ${green}21.${plain} 面板 IP 限制管理                           │
+│  ${green}22.${plain} 系统防火墙端口管理                         │
+│  ${green}23.${plain} SSH 端口转发管理                           │
+│────────────────────────────────────────────────│
+│  ${green}24.${plain} BBR 网络加速与内核管理                      │
+│  ${green}25.${plain} 手动更新 Geo 数据文件                      │
+│  ${green}26.${plain} 进行 Ookla 速度测试                        │
+│────────────────────────────────────────────────│
+│  ${green}27.${plain} PostgreSQL 数据库管理                     │
+╚────────────────────────────────────────────────╝
+"
     show_status
     echo && read -rp "请输入您的选择 [0-27]: " num
 
