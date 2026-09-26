@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"net"
 	"strconv"
 	"strings"
@@ -401,41 +403,72 @@ func (a *InboundController) pushClientTraffics(c *gin.Context) {
 	jsonMsg(c, "success", nil)
 }
 
-// importInbound imports an inbound configuration from provided data.
+// importInbound imports an inbound configuration (single object or array of inbounds) from provided data.
 func (a *InboundController) importInbound(c *gin.Context) {
-	inbound := &model.Inbound{}
-	err := json.Unmarshal([]byte(c.PostForm("data")), inbound)
-	if err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+	raw := bytes.TrimSpace([]byte(c.PostForm("data")))
+	if len(raw) == 0 {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), errors.New("empty data"))
 		return
 	}
+
 	user := session.GetLoginUser(c)
-	inbound.Id = 0
-	inbound.UserId = user.Id
-	// Node IDs are panel-local and not portable across panels. Drop a node
-	// reference that is zero or that points to a node which doesn't exist on
-	// this panel, so a cross-panel export imports as a local inbound instead of
-	// failing with "record not found" when nodePushPlan looks the node up.
-	if inbound.NodeID != nil {
-		if *inbound.NodeID == 0 {
-			inbound.NodeID = nil
-		} else if exists, err := (&service.NodeService{}).NodeExists(*inbound.NodeID); err == nil && !exists {
-			inbound.NodeID = nil
+	var inbounds []*model.Inbound
+
+	if raw[0] == '[' {
+		if err := json.Unmarshal(raw, &inbounds); err != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+			return
+		}
+	} else {
+		single := &model.Inbound{}
+		if err := json.Unmarshal(raw, single); err != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+			return
+		}
+		inbounds = append(inbounds, single)
+	}
+
+	if len(inbounds) == 0 {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), errors.New("no inbounds found"))
+		return
+	}
+
+	var anyNeedRestart bool
+	var lastInbound *model.Inbound
+
+	for _, inbound := range inbounds {
+		inbound.Id = 0
+		inbound.UserId = user.Id
+		// Node IDs are panel-local and not portable across panels. Drop a node
+		// reference that is zero or that points to a node which doesn't exist on
+		// this panel, so a cross-panel export imports as a local inbound instead of
+		// failing with "record not found" when nodePushPlan looks the node up.
+		if inbound.NodeID != nil {
+			if *inbound.NodeID == 0 {
+				inbound.NodeID = nil
+			} else if exists, err := (&service.NodeService{}).NodeExists(*inbound.NodeID); err == nil && !exists {
+				inbound.NodeID = nil
+			}
+		}
+
+		for index := range inbound.ClientStats {
+			inbound.ClientStats[index].Id = 0
+			inbound.ClientStats[index].Enable = true
+		}
+
+		created, needRestart, err := a.inboundService.AddInbound(inbound)
+		if err != nil {
+			jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+			return
+		}
+		lastInbound = created
+		if needRestart {
+			anyNeedRestart = true
 		}
 	}
 
-	for index := range inbound.ClientStats {
-		inbound.ClientStats[index].Id = 0
-		inbound.ClientStats[index].Enable = true
-	}
-
-	inbound, needRestart, err := a.inboundService.AddInbound(inbound)
-	if err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	jsonMsgObj(c, I18nWeb(c, "pages.inbounds.toasts.inboundCreateSuccess"), inbound, nil)
-	if needRestart {
+	jsonMsgObj(c, I18nWeb(c, "pages.inbounds.toasts.inboundCreateSuccess"), lastInbound, nil)
+	if anyNeedRestart {
 		a.xrayService.SetToNeedRestart()
 	}
 	a.broadcastInboundsUpdate(user.Id)
