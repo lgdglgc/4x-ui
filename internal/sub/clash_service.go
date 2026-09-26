@@ -149,7 +149,15 @@ func (s *SubClashService) getClash(subId string, host string, legacy bool) (stri
 			proxyNames = append(proxyNames, name)
 		}
 	}
-	proxyNames = append(proxyNames, "DIRECT")
+	nodeNames := make([]string, 0, len(proxies))
+	for _, proxy := range proxies {
+		if isDummyProxy(proxy) && len(proxies) > 1 {
+			continue
+		}
+		if name, ok := proxy["name"].(string); ok && name != "" {
+			nodeNames = append(nodeNames, name)
+		}
+	}
 
 	var config map[string]any
 
@@ -190,9 +198,11 @@ func (s *SubClashService) getClash(subId string, host string, legacy bool) (stri
 			for _, g := range groups {
 				if gm, ok := g.(map[string]any); ok {
 					if includeAll, ok := gm["include-all-proxies"].(bool); ok && includeAll {
-						gm["proxies"] = proxyNames
+						// include-all-proxies dynamically includes all proxies at client runtime.
+						// Remove static proxies list to prevent node duplication and DIRECT pollution.
+						delete(gm, "proxies")
 					} else if rawP, ok := gm["proxies"].([]any); !ok || len(rawP) == 0 {
-						gm["proxies"] = proxyNames
+						gm["proxies"] = nodeNames
 					}
 				}
 			}
@@ -200,7 +210,7 @@ func (s *SubClashService) getClash(subId string, host string, legacy bool) (stri
 			config["proxy-groups"] = []map[string]any{{
 				"name":    "PROXY",
 				"type":    "select",
-				"proxies": proxyNames,
+				"proxies": nodeNames,
 			}}
 		}
 	}
