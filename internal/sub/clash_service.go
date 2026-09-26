@@ -159,12 +159,8 @@ func (s *SubClashService) getClash(subId string, host string, legacy bool) (stri
 		}
 	}
 
-	// Format proxies to YAML block
-	proxiesBytes, err := marshalClashYAML(map[string]any{"proxies": proxies})
-	if err != nil {
-		return "", "", err
-	}
-	proxiesYAML := strings.TrimSpace(string(proxiesBytes))
+	// Format proxies to YAML block with clean, human-readable key order and 2-space indentation
+	proxiesYAML := formatProxiesYAML(proxies)
 
 	// Check external custom templates for hot-reloading
 	templateStr := defaultClashTemplate
@@ -1182,6 +1178,9 @@ func (s *SubClashService) applySecurity(proxy map[string]any, security string, s
 		if shortID, ok := realitySettings["shortId"].(string); ok && shortID != "" {
 			realityOpts["short-id"] = shortID
 		}
+		if spiderX, ok := realitySettings["spiderX"].(string); ok && spiderX != "" {
+			realityOpts["spider-x"] = spiderX
+		}
 		if len(realityOpts) > 0 {
 			// Xray 26.9.8+ rejects REALITY handshakes without an ML-KEM key share.
 			realityOpts["support-x25519mlkem768"] = true
@@ -1592,3 +1591,147 @@ func linesToClashRules(raw string) []any {
 	}
 	return rules
 }
+
+func formatProxiesYAML(proxies []map[string]any) string {
+	if len(proxies) == 0 {
+		return "proxies: []"
+	}
+	var sb strings.Builder
+	sb.WriteString("proxies:\n")
+
+	preferredKeys := []string{
+		"name",
+		"type",
+		"server",
+		"port",
+		"uuid",
+		"password",
+		"alterId",
+		"cipher",
+		"udp",
+		"tls",
+		"skip-cert-verify",
+		"network",
+		"servername",
+		"sni",
+		"flow",
+		"client-fingerprint",
+		"reality-opts",
+		"ws-opts",
+		"grpc-opts",
+		"h2-opts",
+		"http-opts",
+	}
+
+	for _, p := range proxies {
+		first := true
+		written := make(map[string]bool)
+
+		writeField := func(k string, v any) {
+			if v == nil {
+				return
+			}
+			written[k] = true
+			prefix := "  "
+			if first {
+				prefix = "- "
+				first = false
+			}
+
+			switch val := v.(type) {
+			case string:
+				sb.WriteString(fmt.Sprintf("%s%s: %s\n", prefix, k, formatYAMLString(val)))
+			case int, int64, float64:
+				sb.WriteString(fmt.Sprintf("%s%s: %v\n", prefix, k, val))
+			case bool:
+				sb.WriteString(fmt.Sprintf("%s%s: %t\n", prefix, k, val))
+			case map[string]any:
+				sb.WriteString(fmt.Sprintf("%s%s:\n", prefix, k))
+				writeYAMLMap(&sb, val, 4)
+			default:
+				b, _ := yaml.Marshal(val)
+				lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+				if len(lines) == 1 {
+					sb.WriteString(fmt.Sprintf("%s%s: %s\n", prefix, k, lines[0]))
+				} else {
+					sb.WriteString(fmt.Sprintf("%s%s:\n", prefix, k))
+					for _, l := range lines {
+						sb.WriteString(fmt.Sprintf("    %s\n", l))
+					}
+				}
+			}
+		}
+
+		for _, k := range preferredKeys {
+			if v, ok := p[k]; ok {
+				writeField(k, v)
+			}
+		}
+		for k, v := range p {
+			if !written[k] {
+				writeField(k, v)
+			}
+		}
+	}
+
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+func writeYAMLMap(sb *strings.Builder, m map[string]any, indent int) {
+	spaces := strings.Repeat(" ", indent)
+	preferredSubKeys := []string{"public-key", "short-id", "spider-x", "support-x25519mlkem768", "path", "headers", "serviceName"}
+	written := make(map[string]bool)
+
+	for _, sk := range preferredSubKeys {
+		if sv, ok := m[sk]; ok && sv != nil {
+			written[sk] = true
+			writeKVPair(sb, spaces, sk, sv, indent)
+		}
+	}
+	for sk, sv := range m {
+		if !written[sk] && sv != nil {
+			writeKVPair(sb, spaces, sk, sv, indent)
+		}
+	}
+}
+
+func writeKVPair(sb *strings.Builder, spaces, k string, v any, indent int) {
+	switch val := v.(type) {
+	case string:
+		sb.WriteString(fmt.Sprintf("%s%s: %s\n", spaces, k, formatYAMLString(val)))
+	case bool:
+		sb.WriteString(fmt.Sprintf("%s%s: %t\n", spaces, k, val))
+	case int, int64, float64:
+		sb.WriteString(fmt.Sprintf("%s%s: %v\n", spaces, k, val))
+	case map[string]any:
+		sb.WriteString(fmt.Sprintf("%s%s:\n", spaces, k))
+		writeYAMLMap(sb, val, indent+2)
+	default:
+		b, _ := yaml.Marshal(val)
+		lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+		if len(lines) == 1 {
+			sb.WriteString(fmt.Sprintf("%s%s: %s\n", spaces, k, lines[0]))
+		} else {
+			sb.WriteString(fmt.Sprintf("%s%s:\n", spaces, k))
+			for _, l := range lines {
+				sb.WriteString(fmt.Sprintf("%s  %s\n", spaces, l))
+			}
+		}
+	}
+}
+
+func formatYAMLString(s string) string {
+	if s == "" {
+		return `""`
+	}
+	lower := strings.ToLower(s)
+	if lower == "true" || lower == "false" || lower == "yes" || lower == "no" || lower == "null" {
+		return `"` + s + `"`
+	}
+	if strings.ContainsAny(s, ":#{}[]&*!|>'\"%@`\n") || strings.HasPrefix(s, "/") || strings.HasPrefix(s, "-") {
+		return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
+	}
+	return s
+}
+
+
