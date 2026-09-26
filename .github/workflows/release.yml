@@ -1,0 +1,256 @@
+name: Release 4X-UI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*.*.*"
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - "**.sh"
+      - "**.yaml"
+      - "**.yml"
+      - "sub/**"
+      - "frontend/**"
+      - ".github/**"
+      - "x-ui.service.debian"
+      - "x-ui.service.arch"
+      - "x-ui.service.rhel"
+  pull_request:
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - "**.sh"
+      - "**.yaml"
+      - "**.yml"
+      - "sub/**"
+      - "frontend/**"
+      - ".github/**"
+      - "x-ui.service.debian"
+      - "x-ui.service.arch"
+      - "x-ui.service.rhel"
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - amd64
+          - arm64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend bundle
+        run: |
+          npm ci
+          npm run build
+        working-directory: frontend
+
+      - name: Build 4X-UI Binary
+        run: |
+          export CGO_ENABLED=1
+          export GOOS=linux
+          export GOARCH=${{ matrix.platform }}
+
+          if [ "${{ matrix.platform }}" == "amd64" ]; then
+            echo "Building for amd64 using native gcc..."
+            export CC=gcc
+          elif [ "${{ matrix.platform }}" == "arm64" ]; then
+            echo "Installing aarch64 cross-compiler..."
+            sudo apt-get update
+            sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+            export CC=aarch64-linux-gnu-gcc
+          fi
+
+          echo "Compiling 4X-UI with CC=$CC..."
+          go build -ldflags "-w -s" -o xui-release -v main.go 2>&1 | tee /tmp/build.log || {
+            echo "### ❌ Build Error (${{ matrix.platform }})" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            tail -n 80 /tmp/build.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          }
+          echo "### ✅ Build Succeeded (${{ matrix.platform }})" >> $GITHUB_STEP_SUMMARY
+          ls -lh xui-release
+
+      - name: Prepare Package and Resources
+        run: |
+          set -x
+          mkdir -p x-ui/bin
+          cp xui-release x-ui/x-ui
+          cp x-ui.sh x-ui/
+          cp -f x-ui.service.* x-ui/ || true
+
+          cd x-ui/bin
+          Xray_URL="https://github.com/XTLS/Xray-core/releases/download/v26.6.27/"
+          if [ "${{ matrix.platform }}" == "amd64" ]; then
+            curl -fL -sS --retry 3 "${Xray_URL}Xray-linux-64.zip" -o xray.zip && unzip -o xray.zip && rm -f xray.zip || true
+          elif [ "${{ matrix.platform }}" == "arm64" ]; then
+            curl -fL -sS --retry 3 "${Xray_URL}Xray-linux-arm64-v8a.zip" -o xray.zip && unzip -o xray.zip && rm -f xray.zip || true
+          fi
+
+          if [ -f xray ]; then
+            mv -f xray xray-linux-${{ matrix.platform }}
+          fi
+
+          curl -fL -sS --retry 3 "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" -o geoip.dat || true
+          curl -fL -sS --retry 3 "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" -o geosite.dat || true
+          curl -fL -sS --retry 3 "https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geoip.dat" -o geoip_IR.dat || true
+          curl -fL -sS --retry 3 "https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geosite.dat" -o geosite_IR.dat || true
+          curl -fL -sS --retry 3 "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat" -o geoip_RU.dat || true
+          curl -fL -sS --retry 3 "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat" -o geosite_RU.dat || true
+          cp -f ../../geosite_myai.dat . || true
+          cp -f ../../geosite_ping.dat . || true
+          cd ../..
+
+      - name: Package
+        run: tar -zcvf x-ui-linux-${{ matrix.platform }}.tar.gz x-ui
+
+      - name: Upload files to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-ui-linux-${{ matrix.platform }}
+          path: ./x-ui-linux-${{ matrix.platform }}.tar.gz
+
+      - name: Upload files to GH release
+        uses: svenstaro/upload-release-action@v2
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          file: x-ui-linux-${{ matrix.platform }}.tar.gz
+          asset_name: x-ui-linux-${{ matrix.platform }}.tar.gz
+          overwrite: true
+          prerelease: true
+
+  # =================================
+  #  Windows Build
+  # =================================
+  build-windows:
+    name: Build for Windows
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        platform:
+          - amd64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend bundle
+        shell: pwsh
+        run: |
+          npm ci
+          npm run build
+        working-directory: frontend
+
+      - name: Install MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-sqlite3
+            mingw-w64-x86_64-pkg-config
+
+      - name: Build 4X-UI for Windows (CGO)
+        shell: msys2 {0}
+        run: |
+          export PATH="/c/hostedtoolcache/windows/go/$(ls /c/hostedtoolcache/windows/go | sort -V | tail -n1)/x64/bin:$PATH"
+
+          export CGO_ENABLED=1
+          export GOOS=windows
+          export GOARCH=amd64
+          export CC=x86_64-w64-mingw32-gcc
+
+          which go
+          go version
+          gcc --version
+
+          go build -ldflags "-w -s" -o xui-release.exe -v main.go
+
+      - name: Copy and download resources
+        shell: pwsh
+        run: |
+          mkdir x-ui
+          Copy-Item xui-release.exe x-ui\x-ui.exe
+          mkdir x-ui\bin
+          cd x-ui\bin
+
+          # Download Xray for Windows
+          $Xray_URL = "https://github.com/XTLS/Xray-core/releases/download/v26.6.27/"
+          Invoke-WebRequest -Uri "${Xray_URL}Xray-windows-64.zip" -OutFile "Xray-windows-64.zip"
+          Expand-Archive -Path "Xray-windows-64.zip" -DestinationPath .
+          Remove-Item "Xray-windows-64.zip"
+          Remove-Item geoip.dat, geosite.dat -ErrorAction SilentlyContinue
+          Invoke-WebRequest -Uri "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" -OutFile "geoip.dat"
+          Invoke-WebRequest -Uri "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" -OutFile "geosite.dat"
+          Invoke-WebRequest -Uri "https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geoip.dat" -OutFile "geoip_IR.dat"
+          Invoke-WebRequest -Uri "https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geosite.dat" -OutFile "geosite_IR.dat"
+          Invoke-WebRequest -Uri "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat" -OutFile "geoip_RU.dat"
+          Invoke-WebRequest -Uri "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat" -OutFile "geosite_RU.dat"
+          Rename-Item xray.exe xray-windows-amd64.exe
+          cd ..
+          Copy-Item -Path ..\windows_files\* -Destination . -Recurse
+          cd ..
+
+      - name: Package to Zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path .\x-ui -DestinationPath "x-ui-windows-amd64.zip"
+
+      - name: Upload files to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-ui-windows-amd64
+          path: ./x-ui-windows-amd64.zip
+
+      - name: Upload files to GH release
+        uses: svenstaro/upload-release-action@v2
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          file: x-ui-windows-amd64.zip
+          asset_name: x-ui-windows-amd64.zip
+          overwrite: true
+          prerelease: true
